@@ -47,12 +47,21 @@ julia> d = dist_from_mean((Gamma,(α=4.166666666666667;),  1.5)
 Gamma{Float64}(α=4.166666666666667, θ=0.6)
 ```
 
-
 The supported (non-truncated) continuous distributions are: `Beta`, `Cauchy`, `Chi`, `Chisq`, `Erlang`, `Exponential`, `FDist`, `Frechet`, `Gamma`, `Gumbel`, `InverseGamma`, `Laplace`, `Logistic`, `LogNormal`, `Normal`, `Rayleigh`, `TDist`, `TriangularDist`, `Uniform`, `Weibull`.
 
 The supported discrete distributions are: `Bernoulli`, `Binomial`, `Geometric`, `NegativeBinomial`, `Poisson`.
 
 The supported truncated distributions are: `Normal` and `Laplace`.
 
-In certain cases 
+In all of the cases, when there is not a unique distribution based on the arguments, an exception is thrown. There also also functions of the form `exists_unique_dist_from_mean` (and all other forms of the functions above with the prefix `exists_unique`) which return `true` in case a unique distribution exists and otherwise return `false`. For example, 
 
+```
+julia> exists_unique_dist_from_mean(Exponential, -1.5)
+false
+```
+
+## Algorithms used
+
+Note that in many cases, the function calls implement quite trivial and/or generic computations to construct the distribution. However in certain cases specialized algorithms are used. These include:
+
+* Truncated normal distribution moment fitting.
