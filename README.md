@@ -35,7 +35,7 @@ The complete list of functions is:
 The first argument to each of these functions is a distribution type such as `Gamma` in the example above. Another option for the first argument is a 2-tuple with the first element being a distribution type, and the second element a named tuple of partial parameters. For example,
 
 ```
-julia> d = dist_from_mean((Gamma,(α=4.166666666666667;),  1.5)
+julia> d = dist_from_mean((Gamma,(α=4.166666666666667,)),  1.5)
 Gamma{Float64}(α=4.166666666666667, θ=0.6)
 ```
 
