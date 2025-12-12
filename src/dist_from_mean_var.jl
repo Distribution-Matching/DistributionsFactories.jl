@@ -17,3 +17,28 @@ function dist_from_mean_var(::Type{Chi}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Chi, μ, var)
     return Chis(μ^2+var)
 end
+
+function dist_from_mean_var(::Type{Chisq}, μ::Number, var::Number)
+    exists_unique_dist_from_mean_var(Chisq, μ, var)
+    return Chisq(μ)
+end
+
+function dist_from_mean_var(::Type{Erlang}, μ::Number, var::Number)
+    exists_unique_dist_from_mean_var(Erlang, μ, var)
+    λ = μ/var
+    k = λ*μ
+    return Erlang(k, λ)
+end
+
+function dist_from_mean_var(::Type{Exponential}, μ::Number, var::Number)
+    exists_unique_dist_from_mean_var(Exponential, μ, var)
+    λ = μ/var
+    return Exponential(λ)
+end
+
+function dist_from_mean_var(::Type{FDist}, μ::Number, var::Number)
+    exists_unique_dist_from_mean_var(FDist, μ, var)
+    d_2 = 2*μ/(μ-1)
+    d_1 = 2*μ^2*(d_2-2)/(var*(d_2-4)-2*μ^2)
+    return FDist(d_1,d_2)
+end

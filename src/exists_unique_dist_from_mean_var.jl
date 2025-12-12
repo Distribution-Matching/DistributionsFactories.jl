@@ -43,13 +43,53 @@ function exists_unique_dist_from_mean_var(::Type{Chi}, μ::Number, var::Number)
     return true
 end
 
-function exists_unique_dist_from_mean_var(::Type{Chisq}, μ::Number, var::Number) end
+function exists_unique_dist_from_mean_var(::Type{Chisq}, μ::Number, var::Number)
+    if μ≤0
+        throw(DomainError("Chisq: the condition μ > zero(μ) is not satisfied"))
+    elseif !isinteger(μ)
+        throw(DomainError("Chisq: the condition μ ∈ ℕ is not satisfied"))
+    end
+    if var ≠ 2μ
+        throw(DomainError("Chisq: the condition var=2μ is not satisfied"))
+    end
+    return true
+end
 
-function exists_unique_dist_from_mean_var(::Type{Erlang}, μ::Number, var::Number) end
+function exists_unique_dist_from_mean_var(::Type{Erlang}, μ::Number, var::Number)
+    if μ≤0
+        throw(DomainError("Beta: the condition μ > zero(μ) is not satisfied"))
+    end
+    if var≤0
+        throw(DomainError("Beta: the condition var > zero(var) is not satisfied"))
+    elseif !isinteger(μ^2/var)
+        throw(DomainError("Beta: the condition μ^2/var ∈ ℕ is not satisfied"))
+    end
+    return true
+end
 
-function exists_unique_dist_from_mean_var(::Type{Exponential}, μ::Number, var::Number) end
+function exists_unique_dist_from_mean_var(::Type{Exponential}, μ::Number, var::Number)
+    if μ≤0
+        throw(DomainError("Beta: the condition μ > zero(μ) is not satisfied"))
+    end
+    if var≤0
+        throw(DomainError("Beta: the condition var > zero(var) is not satisfied"))
+    end
+    return true
+end
 
-function exists_unique_dist_from_mean_var(::Type{FDist}, μ::Number, var::Number) end
+function exists_unique_dist_from_mean_var(::Type{FDist}, μ::Number, var::Number) 
+    if μ≤0
+        throw(DomainError("Beta: the condition μ > zero(μ) is not satisfied"))
+    elseif μ≥2
+        throw(DomainError("Beta: the condition μ < 2 is not satisfied"))
+    end
+    if var≤0
+        throw(DomainError("Beta: the condition var > zero(var) is not satisfied"))
+    elseif var≥2*μ^3/(4-2*μ)
+        throw(DomainError("Beta: the condition var < 2*μ^3/(4-2*μ) is not satisfied"))
+    end
+    return true
+end
 
 function exists_unique_dist_from_mean_var(::Type{Frechet}, μ::Number, var::Number) end
 
