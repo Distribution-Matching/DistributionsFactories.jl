@@ -1,6 +1,3 @@
-using Distributions
-using SpecialFunctions
-
 function exists_unique_dist_from_mean_var(disttype::Type{<:Distribution}, mean::Number, var::Number)
     error("$disttype distribution not supported")
 end
@@ -57,36 +54,36 @@ end
 
 function exists_unique_dist_from_mean_var(::Type{Erlang}, μ::Number, var::Number)
     if μ≤0
-        throw(DomainError("Beta: the condition μ > zero(μ) is not satisfied"))
+        throw(DomainError("Erlang: the condition μ > zero(μ) is not satisfied"))
     end
     if var≤0
-        throw(DomainError("Beta: the condition var > zero(var) is not satisfied"))
+        throw(DomainError("Erlang: the condition var > zero(var) is not satisfied"))
     elseif !isinteger(μ^2/var)
-        throw(DomainError("Beta: the condition μ^2/var ∈ ℕ is not satisfied"))
+        throw(DomainError("Erlang: the condition μ^2/var ∈ ℕ is not satisfied"))
     end
     return true
 end
 
 function exists_unique_dist_from_mean_var(::Type{Exponential}, μ::Number, var::Number)
     if μ≤0
-        throw(DomainError("Beta: the condition μ > zero(μ) is not satisfied"))
+        throw(DomainError("Exponential: the condition μ > zero(μ) is not satisfied"))
     end
     if var≤0
-        throw(DomainError("Beta: the condition var > zero(var) is not satisfied"))
+        throw(DomainError("Exponential: the condition var > zero(var) is not satisfied"))
     end
     return true
 end
 
 function exists_unique_dist_from_mean_var(::Type{FDist}, μ::Number, var::Number) 
     if μ≤0
-        throw(DomainError("Beta: the condition μ > zero(μ) is not satisfied"))
+        throw(DomainError("FDist: the condition μ > zero(μ) is not satisfied"))
     elseif μ≥2
-        throw(DomainError("Beta: the condition μ < 2 is not satisfied"))
+        throw(DomainError("FDist: the condition μ < 2 is not satisfied"))
     end
     if var≤0
-        throw(DomainError("Beta: the condition var > zero(var) is not satisfied"))
+        throw(DomainError("FDist: the condition var > zero(var) is not satisfied"))
     elseif var≥2*μ^3/(4-2*μ)
-        throw(DomainError("Beta: the condition var < 2*μ^3/(4-2*μ) is not satisfied"))
+        throw(DomainError("FDist: the condition var < 2*μ^3/(4-2*μ) is not satisfied"))
     end
     return true
 end

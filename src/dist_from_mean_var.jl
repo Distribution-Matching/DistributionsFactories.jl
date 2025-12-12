@@ -1,6 +1,4 @@
 using Distributions
-include("exists_unique_dist_from_mean_var.jl")
-
 function dist_from_mean_var(::Type{Beta}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Beta, μ, var)
     S = (μ*(1-μ))/var-1
@@ -37,7 +35,7 @@ function dist_from_mean_var(::Type{Exponential}, μ::Number, var::Number)
 end
 
 function dist_from_mean_var(::Type{FDist}, μ::Number, var::Number)
-    exists_unique_dist_from_mean_var(FDist, μ, var)
+    # exists_unique_dist_from_mean_var(FDist, μ, var)
     d_2 = 2*μ/(μ-1)
     d_1 = 2*μ^2*(d_2-2)/(var*(d_2-4)-2*μ^2)
     return FDist(d_1,d_2)
