@@ -14,8 +14,8 @@ function exists_unique_dist_from_mean_var(::Type{Beta}, μ::Number, var::Number)
     end
     if var≤0
         throw(DomainError("Beta: the condition var > zero(var) is not satisfied"))
-    elseif var≥μ(1-μ)
-        throw(DomainError("Beta: the condition var < μ(1-μ) is not satisfied"))
+    elseif var≥μ*(1-μ)
+        throw(DomainError("Beta: the condition var < μ*(1-μ) is not satisfied"))
     end
     return true
 end
@@ -70,6 +70,8 @@ function exists_unique_dist_from_mean_var(::Type{Exponential}, μ::Number, var::
     end
     if var≤0
         throw(DomainError("Exponential: the condition var > zero(var) is not satisfied"))
+    elseif !isapprox(var, μ^2; rtol=1e-10)
+        throw(DomainError("Exponential: the condition var = μ² is not satisfied"))
     end
     return true
 end

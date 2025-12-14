@@ -23,15 +23,14 @@ end
 
 function dist_from_mean_var(::Type{Erlang}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Erlang, μ, var)
-    λ = μ/var
-    k = λ*μ
-    return Erlang(k, λ)
+    θ = var/μ
+    k = round(Int, μ^2/var)
+    return Erlang(k, θ)
 end
 
 function dist_from_mean_var(::Type{Exponential}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Exponential, μ, var)
-    λ = μ/var
-    return Exponential(λ)
+    return Exponential(μ)
 end
 
 function dist_from_mean_var(::Type{FDist}, μ::Number, var::Number)
