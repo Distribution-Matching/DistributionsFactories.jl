@@ -2,6 +2,7 @@ module DistributionsFactories
 
 using Distributions
 using SpecialFunctions
+using Roots
 
 
 include("exists_unique_dist_from_mean_var.jl")
