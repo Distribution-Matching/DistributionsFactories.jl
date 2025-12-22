@@ -116,11 +116,69 @@ function dist_from_mean_var(::Type{Uniform}, μ::Number, var::Number)
     return Uniform(a,b)
 end
 
-# Doesnt work, need to test further
+
+
+function abramowitz_and_stegun_weibull_approximation(μ::Number, σ2::Number)
+    ratio = σ2/μ^2
+    coefficients = [
+        -ratio,
+        -0.5748646*(2-1-ratio),
+        0.9512363*(2^2-1-ratio),
+        -0.6998588*(2^3-1-ratio),
+        0.4245549*(2^4-1-ratio),
+        -0.1010678*(2^5-1-ratio)
+    ]
+    p = Polynomial(coefficients)
+    r = roots(p)
+    real_roots = filter(x -> abs(imag(x)) < 1e-10, r)
+    real_roots = real.(real_roots)
+
+    best_error = Inf
+    best_λ = nothing
+    best_k = nothing
+    λ = nothing
+    k = nothing
+    gamma_x = Polynomial([1, -0.5748646, 0.9512363, -0.6998588, 0.4245549, -0.1010678])
+    for (i, root) in enumerate(real_roots)
+        if root == 0
+            continue
+        end
+        λ = μ/gamma_x(root)
+        k = 1/root
+        if λ <= 0 || k <= 0
+            continue
+        end
+        dist = Weibull(λ,k)
+
+        approx_mean = mean(dist)
+        approx_var = var(dist)
+        println("Root $i: $λ $k -> $approx_mean $approx_var")
+        error = (approx_mean - μ)^2 + (approx_var - σ2)^2
+        
+        if error < best_error
+            best_error = error
+            best_λ = λ
+            best_k = k
+        end
+    end
+
+    if best_λ === nothing
+        error("No valid Weibull parameters found")
+    end
+    return λ, k
+end
+
+function oscar_garcia_weibull_approximation(μ::Number, var::Number)
+    z = √(var)/μ
+    f = Polynomial([-0.220009910, -0.001946641, 0.153109251, -0.083543480, 0, 0.007454537])
+
+    k =1/(z*(1+(1-z)^2*f(z)))
+    λ = μ/gamma(1+1/k)
+    return λ, k
+end
+
 function dist_from_mean_var(::Type{Weibull}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Weibull, μ, var)
-    f(k)=μ^2*(gamma(1+2/k)/gamma(1+1/k)^1-1)-var
-    k = find_zero(f,μ^2-var)
-    λ = μ/gamma(1+1/k)
-    return Weibull()
+    λ, k = oscar_garcia_weibull_approximation(μ, var)
+    return Weibull(k, λ)
 end
