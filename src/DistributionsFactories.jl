@@ -2,6 +2,7 @@ module DistributionsFactories
 
 using Distributions
 using SpecialFunctions
+using Polynomials
 using Roots
 
 

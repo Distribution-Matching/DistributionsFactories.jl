@@ -1,4 +1,7 @@
 using Distributions
+using Roots
+using Polynomials
+
 function dist_from_mean_var(::Type{Beta}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Beta, μ, var)
     S = (μ*(1-μ))/var-1
@@ -40,22 +43,11 @@ function dist_from_mean_var(::Type{FDist}, μ::Number, var::Number)
     return FDist(v₁,v₂)
 end
 
-function dist_from_mean_var(::Type{Frechet}, μ::Number, var::Number)
-    exists_unique_dist_from_mean_var(Frechet, μ, var)
-end
-
 function dist_from_mean_var(::Type{Gamma}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Gamma, μ, var)
     α = μ^2/var
     θ = var/μ
     return Gamma(α,θ)
-end
-
-function dist_from_mean_var(::Type{Gumbel}, μ::Number, var::Number)
-    exists_unique_dist_from_mean_var(Gumbel, μ, var)
-    β = √(6*var/π^2)
-    x̄ = μ-β*Base.MathConstants.γ
-    return Gumbel(x̄,β)
 end
 
 function dist_from_mean_var(::Type{InverseGamma}, μ::Number, var::Number)
@@ -116,62 +108,28 @@ function dist_from_mean_var(::Type{Uniform}, μ::Number, var::Number)
     return Uniform(a,b)
 end
 
-
-
-function abramowitz_and_stegun_weibull_approximation(μ::Number, σ2::Number)
-    ratio = σ2/μ^2
-    coefficients = [
-        -ratio,
-        -0.5748646*(2-1-ratio),
-        0.9512363*(2^2-1-ratio),
-        -0.6998588*(2^3-1-ratio),
-        0.4245549*(2^4-1-ratio),
-        -0.1010678*(2^5-1-ratio)
-    ]
-    p = Polynomial(coefficients)
-    r = roots(p)
-    real_roots = filter(x -> abs(imag(x)) < 1e-10, r)
-    real_roots = real.(real_roots)
-
-    best_error = Inf
-    best_λ = nothing
-    best_k = nothing
-    λ = nothing
-    k = nothing
-    gamma_x = Polynomial([1, -0.5748646, 0.9512363, -0.6998588, 0.4245549, -0.1010678])
-    for (i, root) in enumerate(real_roots)
-        if root == 0
-            continue
-        end
-        λ = μ/gamma_x(root)
-        k = 1/root
-        if λ <= 0 || k <= 0
-            continue
-        end
-        dist = Weibull(λ,k)
-
-        approx_mean = mean(dist)
-        approx_var = var(dist)
-        println("Root $i: $λ $k -> $approx_mean $approx_var")
-        error = (approx_mean - μ)^2 + (approx_var - σ2)^2
-        
-        if error < best_error
-            best_error = error
-            best_λ = λ
-            best_k = k
-        end
-    end
-
-    if best_λ === nothing
-        error("No valid Weibull parameters found")
-    end
-    return λ, k
+# https://www.sciencedirect.com/science/article/pii/S0377042724005417
+function victor_nawa_saralees_nadarajah_frechet_approximation(μ::Number, var::Number)
+    cv = √(var)/μ
+    α = π/(√(6)*cv)
+    s = ℯ^(α*(log(μ)-0.5*cv^2)-Base.MathConstants.γ)
+    return α, s
 end
 
+function dist_from_mean_var(::Type{Frechet}, μ::Number, var::Number)
+    # exists_unique_dist_from_mean_var(Frechet, μ, var)
+    α′, s′ = victor_nawa_saralees_nadarajah_frechet_approximation(μ, var)
+    f(z) = gamma(1-2/z)/(gamma(1-1/z)^2)-1-var/(μ^2)
+    α = find_zero(f, α′)
+    s = μ/gamma(1-1/α)
+    return Frechet(α,s)
+end
+
+# https://www.scionresearch.com/__data/assets/pdf_file/0010/36874/NZJFS1131981GARCIA304-306.pdf
 function oscar_garcia_weibull_approximation(μ::Number, var::Number)
     z = √(var)/μ
     f = Polynomial([-0.220009910, -0.001946641, 0.153109251, -0.083543480, 0, 0.007454537])
-
+    
     k =1/(z*(1+(1-z)^2*f(z)))
     λ = μ/gamma(1+1/k)
     return λ, k
@@ -179,6 +137,16 @@ end
 
 function dist_from_mean_var(::Type{Weibull}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Weibull, μ, var)
-    λ, k = oscar_garcia_weibull_approximation(μ, var)
+    λ′, k′ = oscar_garcia_weibull_approximation(μ, var)
+    f(z) = gamma(1+2/z)/(gamma(1+1/z)^2)-1-var/(μ^2)
+    k = find_zero(f, k′)
+    λ = μ/gamma(1+1/k)
     return Weibull(k, λ)
+end
+
+function dist_from_mean_var(::Type{Gumbel}, μ::Number, var::Number)
+    exists_unique_dist_from_mean_var(Gumbel, μ, var)
+    β = √(6*var/π^2)
+    x̄ = μ-β*Base.MathConstants.γ
+    return Gumbel(x̄,β)
 end
