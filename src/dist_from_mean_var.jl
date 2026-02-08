@@ -22,9 +22,7 @@ function dist_from_mean_var(::Type{Uniform}, μ::Number, var::Number)
 end
 
 
-function dist_from_mean_var(::Type{TriangularDist}, μ::Number, var::Number)
-    exists_unique_dist_from_mean_var(TriangularDist, μ, var)
-end
+# Tringular Distribution
 
 # Doubly Truncated Normal
 
