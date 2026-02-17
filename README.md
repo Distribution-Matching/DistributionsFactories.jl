@@ -1,14 +1,24 @@
 # DistributionsFactories.jl
-A Julia package for creating probability distributions parametarised by moments (mean, variance, etc.), or other measures  (median, constrained domains, etc.). 
 
+A Julia package for creating probability distributions parameterised by moments (mean, variance, etc.).
+
+## Installation
+
+```julia
+using Pkg
+Pkg.add("DistributionsFactories")
 ```
+
+## Usage
+
+```julia
 using DistributionsFactories
 using Distributions
 ```
 
-The general interface uses functions like `dist_from_mean_var`, `dist_from_mean`, `dist_from_quantiles` etc. For example: 
+The main interface is `dist_from_mean_var`, which constructs a distribution from a given mean and variance:
 
-```
+```julia
 julia> d = dist_from_mean_var(Gamma, 2.5, 1.5)
 Gamma{Float64}(α=4.166666666666667, θ=0.6)
 
@@ -16,44 +26,62 @@ julia> mean(d), var(d)
 (2.5, 1.5)
 ```
 
-The functions work when the distributional family can be parameterized as such, and otherwise an exception is thrown. For example:
+When no valid distribution exists for the given moments, an exception is thrown:
 
-```
-julia> d = dist_from_mean_var(Exponential, 2.5, 1.5)
-ERROR: The Exponential distribution has a single parameter
-```
-
-The complete list of functions is:
-
-* `dist_from_mean`
-* `dist_from_var`, `dist_from_std`, `dist_from_cv`, `dist_from_scv`
-* `dist_from_mean_var`, `dist_from_mean_std`, `dist_from_mean_cv`, `dist_from_mean_scv`
-* `dist_from_quantile`, `dist_from_qunatiles`, `dist_from_median`, `dist_from_q1_q3`, `dist_from_iqr`
-* `dist_from_median_iqr`
-* `dist_from_mean_quantile`, `dist_from_mean_median`
-
-The first argument to each of these functions is a distribution type such as `Gamma` in the example above. Another option for the first argument is a 2-tuple with the first element being a distribution type, and the second element a named tuple of partial parameters. For example,
-
-```
-julia> d = dist_from_mean((Gamma,(α=4.166666666666667,)),  1.5)
-Gamma{Float64}(α=4.166666666666667, θ=0.6)
+```julia
+julia> dist_from_mean_var(Exponential, 2.5, 1.5)
+ERROR: DomainError with "Exponential: the condition var = μ² is not satisfied"
 ```
 
-The supported (non-truncated) continuous distributions are: `Beta`, `Cauchy`, `Chi`, `Chisq`, `Erlang`, `Exponential`, `FDist`, `Frechet`, `Gamma`, `Gumbel`, `InverseGamma`, `Laplace`, `Logistic`, `LogNormal`, `Normal`, `Rayleigh`, `TDist`, `TriangularDist`, `Uniform`, `Weibull`.
+You can check ahead of time whether a unique distribution exists using `exists_unique_dist_from_mean_var`:
 
-The supported discrete distributions are: `Bernoulli`, `Binomial`, `Geometric`, `NegativeBinomial`, `Poisson`.
-
-The supported truncated distributions are: `Normal` and `Laplace`.
-
-In all of the cases, when there is not a unique distribution based on the arguments, an exception is thrown. There also also functions of the form `exists_unique_dist_from_mean` (and all other forms of the functions above with the prefix `exists_unique`) which return `true` in case a unique distribution exists and otherwise return `false`. For example, 
-
-```
-julia> exists_unique_dist_from_mean(Exponential, -1.5)
-false
+```julia
+julia> exists_unique_dist_from_mean_var(Beta, 0.5, 0.1)
+true
 ```
 
-## Algorithms used
+## Supported distributions
 
-Note that in many cases, the function calls implement quite trivial and/or generic computations to construct the distribution. However in certain cases specialized algorithms are used. These include:
+### Continuous
 
-* Truncated normal distribution moment fitting.
+`Beta`, `Chi`, `Chisq`, `Erlang`, `Exponential`, `FDist`, `Frechet`, `Gamma`, `Gumbel`, `InverseGamma`, `Laplace`, `Logistic`, `LogNormal`, `Normal`, `Rayleigh`, `TDist`, `Uniform`, `Weibull`
+
+### Discrete
+
+`Binomial`, `NegativeBinomial`, `Poisson`
+
+### Weibull method selection
+
+The Weibull `dist_from_mean_var` supports a `method` keyword argument:
+
+```julia
+dist_from_mean_var(Weibull, 5.0, 4.0; method = :simple_bracketing)  # default
+dist_from_mean_var(Weibull, 5.0, 4.0; method = :oscar_garcia)
+```
+
+- `:simple_bracketing` (default) -- solves via `solve_beta_ratio`
+- `:oscar_garcia` -- Oscar Garcia polynomial approximation as initial guess, refined with root finding
+
+## Algorithms
+
+In many cases the moment-to-parameter mapping is a direct formula. For certain distributions, specialised algorithms are used:
+
+- **Weibull** -- numerical solution of the beta-ratio equation, or Oscar Garcia polynomial approximation with root refinement
+- **Frechet** -- Victor Nawa & Saralees Nadarajah approximation with root refinement
+
+## Coming soon
+
+### Distributions
+
+- `Bernoulli`, `Geometric`
+- `TriangularDist`
+- Truncated `Normal`, truncated `Laplace`
+
+### Functions
+
+- `dist_from_mean`, `dist_from_mean_std`, `dist_from_mean_cv`, `dist_from_mean_scv`
+- `dist_from_var`, `dist_from_std`, `dist_from_cv`, `dist_from_scv`
+- `dist_from_quantile`, `dist_from_quantiles`, `dist_from_median`, `dist_from_q1_q3`, `dist_from_iqr`
+- `dist_from_median_iqr`
+- `dist_from_mean_quantile`, `dist_from_mean_median`
+- Partial parameter syntax, e.g. `dist_from_mean((Gamma, (α=4.167,)), 1.5)`
