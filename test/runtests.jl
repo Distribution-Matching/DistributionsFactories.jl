@@ -11,6 +11,9 @@ include("test_numerical_aux_solvers.jl")
     @test test_mean_var_Chisq()
     @test_broken test_mean_var_Erlang()
     @test_broken test_mean_var_Exponential()
+    @test test_mean_var_Weibull_simple_bracketing()
+    @test test_mean_var_Weibull_oscar_garcia()
+    @test test_mean_var_Weibull_methods_agree()
     @test test_mean_var_FDist()
 end
 

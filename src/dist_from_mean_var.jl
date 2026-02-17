@@ -111,22 +111,27 @@ function dist_from_mean_var(::Type{Frechet}, μ::Number, var::Number)
     return Frechet(α,s)
 end
 
-# https://www.scionresearch.com/__data/assets/pdf_file/0010/36874/NZJFS1131981GARCIA304-306.pdf
 function oscar_garcia_weibull_approximation(μ::Number, var::Number)
     z = √(var)/μ
     f = Polynomial([-0.220009910, -0.001946641, 0.153109251, -0.083543480, 0, 0.007454537])
-    
-    k =1/(z*(1+(1-z)^2*f(z)))
+    k = 1/(z*(1+(1-z)^2*f(z)))
     λ = μ/gamma(1+1/k)
     return λ, k
 end
 
-function dist_from_mean_var(::Type{Weibull}, μ::Number, var::Number)
+function dist_from_mean_var(::Type{Weibull}, μ::Number, var::Number; method::Symbol = :simple_bracketing)
     exists_unique_dist_from_mean_var(Weibull, μ, var)
-    λ′, k′ = oscar_garcia_weibull_approximation(μ, var)
-    f(z) = gamma(1+2/z)/(gamma(1+1/z)^2)-1-var/(μ^2)
-    k = find_zero(f, k′)
-    λ = μ/gamma(1+1/k)
+    if method == :simple_bracketing
+        CV² = var / μ^2
+        k = solve_beta_ratio((CV² + 1) / 2)
+    elseif method == :oscar_garcia
+        λ′, k′ = oscar_garcia_weibull_approximation(μ, var)
+        f(z) = gamma(1+2/z)/(gamma(1+1/z)^2) - 1 - var/(μ^2)
+        k = find_zero(f, k′)
+    else
+        throw(ArgumentError("Unknown method: $method. Use :simple_bracketing or :oscar_garcia"))
+    end
+    λ = μ / gamma(1 + 1 / k)
     return Weibull(k, λ)
 end
 
