@@ -6,6 +6,7 @@ using Polynomials
 using Roots
 
 
+include("numerical_aux_solvers.jl")
 include("exists_unique_dist_from_mean_var.jl")
 include("dist_from_mean_var.jl")
 
