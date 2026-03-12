@@ -1,7 +1,7 @@
 using Distributions
 using Roots
 using Polynomials
-
+using SpecialFunctions
 
 
 
@@ -94,45 +94,56 @@ function dist_from_mean_var(::Type{Erlang}, μ::Number, var::Number)
 end
 
 
-# https://www.sciencedirect.com/science/article/pii/S0377042724005417
-function victor_nawa_saralees_nadarajah_frechet_approximation(μ::Number, var::Number)
-    cv = √(var)/μ
-    α = π/(√(6)*cv)
-    s = ℯ^(α*(log(μ)-0.5*cv^2)-Base.MathConstants.γ)
-    return α, s
+function ron_ashri_evt_approximation(μ::Number, var::Number, positiveSolution::Bool)
+    μ_b  = BigFloat(μ)
+    var_b = BigFloat(var)
+    CV = √(var_b)/μ_b
+    f(x) = x/beta(1/x,1/x)-(1+CV^2)/2
+    if 0 < CV^2 < 1
+        lowerBound = positiveSolution>0 ? 1/CV : min(-√(2π), -1/CV);
+        upperBound = positiveSolution>0 ? (CV^2+1)/(2CV^2) : -2(1+CV^2)/(CV^2);
+        # println(f(lowerBound), f(upperBound))
+        return find_zero(f, (lowerBound, upperBound));
+    elseif CV^2 == 1
+        return positiveSolution>0 ? 1 : find_zero(f, -√(7));
+    elseif CV^2 > 1
+        lowerBound = positiveSolution>0 ? 0 : -2;
+        upperBound = positiveSolution>0 ? 1 : -2(1+CV^2)/(CV^2);
+        while true
+            tmp = (upperBound+lowerBound)/2
+            if f(tmp)<0
+                upperBound = tmp;
+            elseif f(tmp)>0
+                lowerBound = tmp;
+                break
+            else
+                return tmp;
+            end
+        end
+        return find_zero(f, (lowerBound, upperBound));
+    end
+end
+
+function ron_ashri_weibull_approximation(μ::Number, var::Number)
+    k = ron_ashri_evt_approximation(μ,var, true)
+    λ = μ/gamma(1+1/k)
+    return Weibull(k, λ)
+end
+
+function ron_ashri_frechet_approximation(μ::Number, var::Number)
+    α=-1*ron_ashri_evt_approximation(μ,var, false)
+    s = μ/gamma(1-1/α)
+    return Frechet(α, s)
 end
 
 function dist_from_mean_var(::Type{Frechet}, μ::Number, var::Number)
-    # exists_unique_dist_from_mean_var(Frechet, μ, var)
-    α′, s′ = victor_nawa_saralees_nadarajah_frechet_approximation(μ, var)
-    f(z) = gamma(1-2/z)/(gamma(1-1/z)^2)-1-var/(μ^2)
-    α = find_zero(f, α′)
-    s = μ/gamma(1-1/α)
-    return Frechet(α,s)
+    exists_unique_dist_from_mean_var(Frechet, μ, var)
+    return ron_ashri_frechet_approximation(μ,var)
 end
 
-function oscar_garcia_weibull_approximation(μ::Number, var::Number)
-    z = √(var)/μ
-    f = Polynomial([-0.220009910, -0.001946641, 0.153109251, -0.083543480, 0, 0.007454537])
-    k = 1/(z*(1+(1-z)^2*f(z)))
-    λ = μ/gamma(1+1/k)
-    return λ, k
-end
-
-function dist_from_mean_var(::Type{Weibull}, μ::Number, var::Number; method::Symbol = :simple_bracketing)
+function dist_from_mean_var(::Type{Weibull}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Weibull, μ, var)
-    if method == :simple_bracketing
-        CV² = var / μ^2
-        k = solve_beta_ratio((CV² + 1) / 2)
-    elseif method == :oscar_garcia
-        λ′, k′ = oscar_garcia_weibull_approximation(μ, var)
-        f(z) = gamma(1+2/z)/(gamma(1+1/z)^2) - 1 - var/(μ^2)
-        k = find_zero(f, k′)
-    else
-        throw(ArgumentError("Unknown method: $method. Use :simple_bracketing or :oscar_garcia"))
-    end
-    λ = μ / gamma(1 + 1 / k)
-    return Weibull(k, λ)
+    return ron_ashri_weibull_approximation(μ,var)
 end
 
 function dist_from_mean_var(::Type{Gumbel}, μ::Number, var::Number)

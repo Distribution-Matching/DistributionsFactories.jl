@@ -132,15 +132,19 @@ function exists_unique_dist_from_mean_var(::Type{Erlang}, μ::Number, var::Numbe
 end
 
 
-# may need further investigation
 function exists_unique_dist_from_mean_var(::Type{Frechet}, μ::Number, var::Number)
     base_exists_unique_dist_from_mean_var(Frechet, μ,var)
+    if μ≤0
+        throw(DomainError("Frechet: the condition μ > zero(μ) is not satisfied"))
+    end
     return true
 end
 
-# may need further investigation
 function exists_unique_dist_from_mean_var(::Type{Weibull}, μ::Number, var::Number)
     base_exists_unique_dist_from_mean_var(Weibull, μ,var)
+    if μ≤0
+        throw(DomainError("Weibull: the condition μ > zero(μ) is not satisfied"))
+    end
     return true
 end
 
