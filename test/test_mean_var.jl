@@ -100,6 +100,39 @@ function test_mean_var_Weibull_methods_agree()
     return true
 end
 
+function test_mean_var_TDist_instance()
+    for ν ∈ [3, 5, 10, 30, 100]
+        for target_μ ∈ [-10.0, 0.0, 5.0, 42.0]
+            for target_var ∈ [0.1, 1.0, 4.0, 25.0]
+                d = dist_from_mean_var(TDist(ν), target_μ, target_var)
+                if !isapprox(mean(d), target_μ, atol=1e-8)
+                    @info "Mean mismatch:", ν, target_μ, target_var, mean(d)
+                    return false
+                end
+                if !isapprox(var(d), target_var, rtol=1e-8)
+                    @info "Var mismatch:", ν, target_μ, target_var, var(d)
+                    return false
+                end
+            end
+        end
+    end
+    return true
+end
+
+function test_mean_var_TDist_instance_returns_affine()
+    d = dist_from_mean_var(TDist(5), 10.0, 4.0)
+    return d isa LocationScale
+end
+
+function test_mean_var_TDist_instance_low_dof_errors()
+    try
+        dist_from_mean_var(TDist(2), 0.0, 1.0)
+        return false
+    catch e
+        return e isa DomainError
+    end
+end
+
 function test_mean_var_FDist()
     for d₁ ∈ 2:0.5:50
         for d₂ ∈ 4.5:0.5:50

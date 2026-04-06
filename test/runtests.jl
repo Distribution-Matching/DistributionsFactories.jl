@@ -14,6 +14,9 @@ include("test_numerical_aux_solvers.jl")
     @test test_mean_var_Weibull_simple_bracketing()
     @test test_mean_var_Weibull_oscar_garcia()
     @test test_mean_var_Weibull_methods_agree()
+    @test test_mean_var_TDist_instance()
+    @test test_mean_var_TDist_instance_returns_affine()
+    @test test_mean_var_TDist_instance_low_dof_errors()
     @test test_mean_var_FDist()
 end
 

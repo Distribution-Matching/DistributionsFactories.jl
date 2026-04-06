@@ -41,6 +41,14 @@ function dist_from_mean_var(::Type{TDist}, μ::Number, var::Number)
     return TDist(v)
 end
 
+function dist_from_mean_var(d::TDist, μ::Number, var::Number)
+    exists_unique_dist_from_mean_var(d, μ, var)
+    ν = dof(d)
+    base_var = ν / (ν - 2)
+    σ = √(var / base_var)
+    return μ + σ * d
+end
+
 function dist_from_mean_var(::Type{Cauchy}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Cauchy, μ, var)
 end

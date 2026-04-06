@@ -57,6 +57,15 @@ function exists_unique_dist_from_mean_var(::Type{TDist}, μ::Number, var::Number
     return true
 end
 
+function exists_unique_dist_from_mean_var(d::TDist, μ::Number, var::Number)
+    base_exists_unique_dist_from_mean_var(TDist, μ,var)
+    ν = dof(d)
+    if ν ≤ 2
+        throw(DomainError("TDist instance: the condition ν > 2 is not satisfied (ν=$ν). Variance is undefined for ν ≤ 2."))
+    end
+    return true
+end
+
 function exists_unique_dist_from_mean_var(::Type{Cauchy}, μ::Number, var::Number)
     if !isnan(μ)
         throw(DomainError("Cauchy: distribution cannot have a defined μ"))
