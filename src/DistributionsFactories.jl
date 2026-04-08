@@ -5,12 +5,49 @@ using SpecialFunctions
 using Polynomials
 using Roots
 
+# Marker types for distributions not in Distributions.jl
+abstract type AbstractDistributionsFactoriesType <: Distribution{Univariate, Continuous} end
+
+struct FoldedNormal <: AbstractDistributionsFactoriesType end
+
+abstract type AbstractDistributionsFactoriesDiscreteType <: Distribution{Univariate, Discrete} end
+
+struct DiscreteTriangular <: AbstractDistributionsFactoriesDiscreteType end
+struct DiscreteSymmetricTriangular <: AbstractDistributionsFactoriesDiscreteType end
+struct TruncatedPoisson <: AbstractDistributionsFactoriesDiscreteType end
 
 include("numerical_aux_solvers.jl")
 include("exists_unique_dist_from_mean_var.jl")
 include("dist_from_mean_var.jl")
+include("dist_from_variants.jl")
+include("dist_from_mean.jl")
+include("dist_from_quantile.jl")
 
 export dist_from_mean_var,
-        exists_unique_dist_from_mean_var
+        dist_from_mean_std,
+        dist_from_mean_cv,
+        dist_from_mean_scv,
+        dist_from_mean_second_moment,
+        dist_from_var,
+        dist_from_std,
+        dist_from_mean,
+        dist_from_quantile,
+        dist_from_quantiles,
+        dist_from_median,
+        dist_from_q1,
+        dist_from_q3,
+        dist_from_median_iqr,
+        dist_from_q1_q3,
+        dist_from_mean_quantile,
+        dist_from_mean_median,
+        exists_unique_dist_from_mean_var,
+        exists_unique_dist_from_mean_std,
+        exists_unique_dist_from_mean_cv,
+        exists_unique_dist_from_mean_scv,
+        exists_unique_dist_from_mean_second_moment,
+        FoldedNormal,
+        DiscreteTriangular,
+        DiscreteSymmetricTriangular,
+        TruncatedPoisson
 
 end # end the module

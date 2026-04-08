@@ -22,13 +22,6 @@ function dist_from_mean_var(::Type{Uniform}, μ::Number, var::Number)
 end
 
 
-# Tringular Distribution
-
-# Doubly Truncated Normal
-
-# Doubly Truncated Laplace
-
-
 function dist_from_mean_var(::Type{Normal}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Normal, μ, var)
     return Normal(μ,√(var))
@@ -84,7 +77,7 @@ end
 
 function dist_from_mean_var(::Type{Exponential}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Exponential, μ, var)
-    return Exponential(1/μ)
+    return Exponential(μ)
 end
 
 function dist_from_mean_var(::Type{Gamma}, μ::Number, var::Number)
@@ -96,9 +89,9 @@ end
 
 function dist_from_mean_var(::Type{Erlang}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Erlang, μ, var)
-    λ = μ/var
     k = round(Int, μ^2/var)
-    return Erlang(k, λ)
+    θ = var/μ
+    return Erlang(k, θ)
 end
 
 
@@ -190,12 +183,6 @@ function dist_from_mean_var(::Type{InverseGamma}, μ::Number, var::Number)
 end
 
 
-# half truncated normal
-
-
-# half truncated Laplace
-
-
 function dist_from_mean_var(::Type{Binomial}, μ::Number, var::Number)
     exists_unique_dist_from_mean_var(Binomial, μ, var)
     p=1-var/μ
@@ -215,4 +202,55 @@ function dist_from_mean_var(::Type{NegativeBinomial}, μ::Number, var::Number)
     p=μ/var
     r=μ^2/(var-μ)
     return NegativeBinomial(r,p)
+end
+
+
+# --- Not yet implemented ---
+
+function dist_from_mean_var(::Type{Pareto}, μ::Number, var::Number)
+    throw(ErrorException("Pareto: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(::Type{FoldedNormal}, μ::Number, var::Number)
+    throw(ErrorException("FoldedNormal: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(::Type{Geometric}, μ::Number, var::Number)
+    throw(ErrorException("Geometric: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(d::Truncated{<:Normal}, μ::Number, var::Number)
+    throw(ErrorException("Truncated Normal: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(d::Truncated{<:Laplace}, μ::Number, var::Number)
+    throw(ErrorException("Truncated Laplace: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(d::Truncated{<:Logistic}, μ::Number, var::Number)
+    throw(ErrorException("Truncated Logistic: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(::Type{TriangularDist}, μ::Number, var::Number)
+    throw(ErrorException("TriangularDist: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(::Type{SymTriangularDist}, μ::Number, var::Number)
+    throw(ErrorException("SymTriangularDist: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(::Type{DiscreteTriangular}, μ::Number, var::Number)
+    throw(ErrorException("DiscreteTriangular: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(::Type{DiscreteSymmetricTriangular}, μ::Number, var::Number)
+    throw(ErrorException("DiscreteSymmetricTriangular: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(::Type{TruncatedPoisson}, μ::Number, var::Number)
+    throw(ErrorException("TruncatedPoisson: dist_from_mean_var not yet implemented"))
+end
+
+function dist_from_mean_var(::Type{DiscreteUniform}, μ::Number, var::Number)
+    throw(ErrorException("DiscreteUniform: dist_from_mean_var not yet implemented"))
 end

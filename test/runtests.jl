@@ -3,21 +3,44 @@ using DistributionsFactories
 using Distributions
 
 include("test_mean_var.jl")
+include("test_mean_variants.jl")
+include("test_quantile.jl")
 include("test_numerical_aux_solvers.jl")
 
 
 @testset "Mean Var tests" begin
     @test test_mean_var_Beta()
     @test test_mean_var_Chisq()
-    @test_broken test_mean_var_Erlang()
-    @test_broken test_mean_var_Exponential()
-    @test test_mean_var_Weibull_simple_bracketing()
-    @test test_mean_var_Weibull_oscar_garcia()
-    @test test_mean_var_Weibull_methods_agree()
+    @test test_mean_var_Erlang()
+    @test test_mean_var_Exponential()
+    @test_broken test_mean_var_Weibull_simple_bracketing()
+    @test_broken test_mean_var_Weibull_oscar_garcia()
+    @test_broken test_mean_var_Weibull_methods_agree()
     @test test_mean_var_TDist_instance()
     @test test_mean_var_TDist_instance_returns_affine()
     @test test_mean_var_TDist_instance_low_dof_errors()
     @test test_mean_var_FDist()
+end
+
+@testset "Mean variant wrappers" begin
+    @test test_mean_std_roundtrip()
+    @test test_mean_cv_roundtrip()
+    @test test_mean_scv_roundtrip()
+    @test test_variants_consistency()
+    @test test_exists_variants()
+end
+
+@testset "Quantile-based construction" begin
+    @test test_quantile_exponential()
+    @test test_median_exponential()
+    @test test_q1_q3_exponential()
+    @test test_quantiles_location_scale()
+    @test test_quantiles_gamma()
+    @test test_quantiles_beta()
+    @test test_mean_quantile_gamma()
+    @test test_mean_quantile_beta()
+    @test test_median_iqr_normal()
+    @test test_mean_median_gamma()
 end
 
 @testset "solve_beta_ratio" begin
