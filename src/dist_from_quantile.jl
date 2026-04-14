@@ -1,5 +1,18 @@
 # Quantile-based construction: core methods
 
+# --- Helper for location-scale families ---
+
+function _dist_from_quantiles_location_scale(::Type{D}, p1::Number, q1::Number, p2::Number, q2::Number) where {D<:ContinuousUnivariateDistribution}
+    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
+    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
+    z1 = quantile(D(), p1)
+    z2 = quantile(D(), p2)
+    s = (q2 - q1) / (z2 - z1)
+    s > 0 || throw(DomainError("Quantile specification implies non-positive scale"))
+    μ = q1 - s * z1
+    return D(μ, s)
+end
+
 # --- Single quantile (1-parameter distributions) ---
 
 """
@@ -20,7 +33,7 @@ function dist_from_quantile(::Type{Exponential}, p::Number, q::Number)
     return Exponential(θ)
 end
 
-# --- Two quantiles (2-parameter location-scale families) ---
+# --- Two quantiles (2-parameter distributions) ---
 
 """
     dist_from_quantiles(D, p1, q1, p2, q2)
@@ -28,67 +41,27 @@ end
 Construct a 2-parameter distribution `D` such that its `p1`-th quantile equals `q1`
 and its `p2`-th quantile equals `q2`.
 
-Supported for location-scale families (`Normal`, `Laplace`, `Logistic`, `Cauchy`, `Gumbel`)
-and for shape-scale families (`Gamma`, `Beta`) via numerical solving.
+Direct formula for location-scale families (`Normal`, `Laplace`, `Logistic`, `Cauchy`, `Gumbel`).
+Numerical (root-finding) for shape-scale families (`Gamma`, `Beta`).
 
 See also: [`dist_from_q1_q3`](@ref), [`dist_from_median_iqr`](@ref)
 """
 function dist_from_quantiles end
 
-function dist_from_quantiles(::Type{Normal}, p1::Number, q1::Number, p2::Number, q2::Number)
-    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
-    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
-    z1 = quantile(Normal(), p1)
-    z2 = quantile(Normal(), p2)
-    σ = (q2 - q1) / (z2 - z1)
-    σ > 0 || throw(DomainError("Quantile specification implies non-positive σ"))
-    μ = q1 - σ * z1
-    return Normal(μ, σ)
-end
+dist_from_quantiles(::Type{Normal}, p1::Number, q1::Number, p2::Number, q2::Number) =
+    _dist_from_quantiles_location_scale(Normal, p1, q1, p2, q2)
 
-function dist_from_quantiles(::Type{Laplace}, p1::Number, q1::Number, p2::Number, q2::Number)
-    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
-    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
-    z1 = quantile(Laplace(), p1)
-    z2 = quantile(Laplace(), p2)
-    b = (q2 - q1) / (z2 - z1)
-    b > 0 || throw(DomainError("Quantile specification implies non-positive scale"))
-    μ = q1 - b * z1
-    return Laplace(μ, b)
-end
+dist_from_quantiles(::Type{Laplace}, p1::Number, q1::Number, p2::Number, q2::Number) =
+    _dist_from_quantiles_location_scale(Laplace, p1, q1, p2, q2)
 
-function dist_from_quantiles(::Type{Logistic}, p1::Number, q1::Number, p2::Number, q2::Number)
-    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
-    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
-    z1 = quantile(Logistic(), p1)
-    z2 = quantile(Logistic(), p2)
-    s = (q2 - q1) / (z2 - z1)
-    s > 0 || throw(DomainError("Quantile specification implies non-positive scale"))
-    μ = q1 - s * z1
-    return Logistic(μ, s)
-end
+dist_from_quantiles(::Type{Logistic}, p1::Number, q1::Number, p2::Number, q2::Number) =
+    _dist_from_quantiles_location_scale(Logistic, p1, q1, p2, q2)
 
-function dist_from_quantiles(::Type{Cauchy}, p1::Number, q1::Number, p2::Number, q2::Number)
-    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
-    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
-    z1 = quantile(Cauchy(), p1)
-    z2 = quantile(Cauchy(), p2)
-    σ = (q2 - q1) / (z2 - z1)
-    σ > 0 || throw(DomainError("Quantile specification implies non-positive scale"))
-    μ = q1 - σ * z1
-    return Cauchy(μ, σ)
-end
+dist_from_quantiles(::Type{Cauchy}, p1::Number, q1::Number, p2::Number, q2::Number) =
+    _dist_from_quantiles_location_scale(Cauchy, p1, q1, p2, q2)
 
-function dist_from_quantiles(::Type{Gumbel}, p1::Number, q1::Number, p2::Number, q2::Number)
-    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
-    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
-    z1 = quantile(Gumbel(), p1)
-    z2 = quantile(Gumbel(), p2)
-    β = (q2 - q1) / (z2 - z1)
-    β > 0 || throw(DomainError("Quantile specification implies non-positive scale"))
-    μ = q1 - β * z1
-    return Gumbel(μ, β)
-end
+dist_from_quantiles(::Type{Gumbel}, p1::Number, q1::Number, p2::Number, q2::Number) =
+    _dist_from_quantiles_location_scale(Gumbel, p1, q1, p2, q2)
 
 # --- Two quantiles (2-parameter non-location-scale, numerical) ---
 
@@ -172,9 +145,10 @@ end
 # --- Hybrid: mean + quantile ---
 
 """
-    dist_from_mean_quantile(D, μ, p, q)
+    dist_from_mean_quantile(D, μ̄, p, q)
 
-Construct a 2-parameter distribution `D` with mean `μ` and `p`-th quantile equal to `q`.
+Numerical (root-finding). Construct a 2-parameter distribution `D` with mean `μ̄`
+and `p`-th quantile equal to `q`.
 
 Supported distributions: `Gamma`, `Beta`.
 
@@ -182,32 +156,32 @@ See also: [`dist_from_mean_median`](@ref)
 """
 function dist_from_mean_quantile end
 
-function dist_from_mean_quantile(::Type{Gamma}, μ::Number, p::Number, q::Number)
-    μ > 0 || throw(DomainError(μ, "Gamma: μ must be > 0"))
+function dist_from_mean_quantile(::Type{Gamma}, μ̄::Number, p::Number, q::Number)
+    μ̄ > 0 || throw(DomainError(μ̄, "Gamma: μ̄ must be > 0"))
     (0 < p < 1) || throw(DomainError(p, "p must be in (0,1)"))
     q > 0 || throw(DomainError(q, "Gamma: quantile must be > 0"))
 
-    # mean = α*θ, so θ = μ/α. Solve for α.
+    # mean = α*θ, so θ = μ̄/α. Solve for α.
     α_sol = find_zero(
-        α -> quantile(Gamma(α, μ / α), p) - q,
+        α -> quantile(Gamma(α, μ̄ / α), p) - q,
         1.0
     )
-    return Gamma(α_sol, μ / α_sol)
+    return Gamma(α_sol, μ̄ / α_sol)
 end
 
-function dist_from_mean_quantile(::Type{Beta}, μ::Number, p::Number, q::Number)
-    (0 < μ < 1) || throw(DomainError(μ, "Beta: μ must be in (0,1)"))
+function dist_from_mean_quantile(::Type{Beta}, μ̄::Number, p::Number, q::Number)
+    (0 < μ̄ < 1) || throw(DomainError(μ̄, "Beta: μ̄ must be in (0,1)"))
     (0 < p < 1) || throw(DomainError(p, "p must be in (0,1)"))
     (0 < q < 1) || throw(DomainError(q, "Beta: quantile must be in (0,1)"))
 
-    # α = μS, β = (1-μ)S. Solve for S (= α+β) via quantile constraint.
+    # α = μ̄S, β = (1-μ̄)S. Solve for S (= α+β) via quantile constraint.
     logS_sol = find_zero(
         logS -> begin
             S = exp(logS)
-            quantile(Beta(μ * S, (1 - μ) * S), p) - q
+            quantile(Beta(μ̄ * S, (1 - μ̄) * S), p) - q
         end,
         1.0
     )
     S = exp(logS_sol)
-    return Beta(μ * S, (1 - μ) * S)
+    return Beta(μ̄ * S, (1 - μ̄) * S)
 end
