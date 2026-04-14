@@ -20,6 +20,11 @@ include("test_numerical_aux_solvers.jl")
     @test test_mean_var_TDist_instance_returns_affine()
     @test test_mean_var_TDist_instance_low_dof_errors()
     @test test_mean_var_FDist()
+    @test test_mean_var_Geometric()
+    @test test_mean_var_Pareto()
+    @test test_mean_var_SymTriangularDist()
+    @test test_mean_var_DiscreteUniform()
+    @test test_mean_var_Geometric_dist_from_mean()
 end
 
 @testset "Mean variant wrappers" begin

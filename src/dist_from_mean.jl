@@ -1,5 +1,14 @@
 # Single-parameter distributions: construct from mean alone
 
+"""
+    dist_from_mean(D, μ)
+
+Construct a 1-parameter distribution `D` from its mean alone. Only supported for
+distributions where all parameters are determined by the mean:
+`Exponential`, `Poisson`, `Rayleigh`, `Chisq`, `Geometric`.
+"""
+function dist_from_mean end
+
 function dist_from_mean(::Type{Exponential}, μ::Number)
     μ > 0 || throw(DomainError(μ, "Exponential: μ must be > 0"))
     return Exponential(μ)

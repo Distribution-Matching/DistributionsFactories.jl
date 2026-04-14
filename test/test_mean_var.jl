@@ -138,12 +138,81 @@ function test_mean_var_FDist()
         for d₂ ∈ 4.5:0.5:50
             true_dist = FDist(d₁, d₂)
             m, v = mean(true_dist), var(true_dist)
-            # @show d₁, d₂, m, v
             new_dist = dist_from_mean_var(FDist, m, v)
             if !all(isapprox.(params(true_dist), params(new_dist), atol = 1e-8))
                 @info "Mismatch:", new_dist, true_dist
                 return false
             end
+        end
+    end
+    return true
+end
+
+function test_mean_var_Geometric()
+    for p ∈ 0.1:0.1:0.9
+        true_dist = Geometric(p)
+        m, v = mean(true_dist), var(true_dist)
+        new_dist = dist_from_mean_var(Geometric, m, v)
+        if !isapprox(params(true_dist)[1], params(new_dist)[1], atol = 1e-8)
+            @info "Mismatch:", new_dist, true_dist
+            return false
+        end
+    end
+    return true
+end
+
+function test_mean_var_Pareto()
+    for α ∈ 3.0:0.5:10.0
+        for θ ∈ 0.5:0.5:5.0
+            true_dist = Pareto(α, θ)
+            m, v = mean(true_dist), var(true_dist)
+            new_dist = dist_from_mean_var(Pareto, m, v)
+            if !isapprox(mean(new_dist), m, rtol = 1e-8) || !isapprox(var(new_dist), v, rtol = 1e-8)
+                @info "Mismatch:", new_dist, true_dist
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function test_mean_var_SymTriangularDist()
+    for μ ∈ -5.0:2.5:5.0
+        for s ∈ 1.0:1.0:5.0
+            true_dist = SymTriangularDist(μ, s)
+            m, v = mean(true_dist), var(true_dist)
+            new_dist = dist_from_mean_var(SymTriangularDist, m, v)
+            if !isapprox(mean(new_dist), m, atol = 1e-8) || !isapprox(var(new_dist), v, rtol = 1e-8)
+                @info "Mismatch:", new_dist, true_dist
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function test_mean_var_DiscreteUniform()
+    for a ∈ -5:5
+        for b ∈ (a+1):(a+20)
+            true_dist = DiscreteUniform(a, b)
+            m, v = mean(true_dist), var(true_dist)
+            new_dist = dist_from_mean_var(DiscreteUniform, m, v)
+            if params(true_dist) != params(new_dist)
+                @info "Mismatch:", new_dist, true_dist
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function test_mean_var_Geometric_dist_from_mean()
+    for p ∈ 0.1:0.1:0.9
+        μ = (1 - p) / p
+        new_dist = dist_from_mean(Geometric, μ)
+        if !isapprox(params(new_dist)[1], p, atol = 1e-8)
+            @info "Mismatch: p=$p got $(params(new_dist)[1])"
+            return false
         end
     end
     return true

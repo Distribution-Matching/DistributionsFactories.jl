@@ -2,6 +2,17 @@
 
 # --- Single quantile (1-parameter distributions) ---
 
+"""
+    dist_from_quantile(D, p, q)
+
+Construct a 1-parameter distribution `D` such that its `p`-th quantile equals `q`.
+
+Supported distributions: `Exponential`.
+
+See also: [`dist_from_quantiles`](@ref), [`dist_from_median`](@ref)
+"""
+function dist_from_quantile end
+
 function dist_from_quantile(::Type{Exponential}, p::Number, q::Number)
     (0 < p < 1) || throw(DomainError(p, "p must be in (0,1)"))
     q > 0 || throw(DomainError(q, "Exponential: quantile must be > 0"))
@@ -10,6 +21,19 @@ function dist_from_quantile(::Type{Exponential}, p::Number, q::Number)
 end
 
 # --- Two quantiles (2-parameter location-scale families) ---
+
+"""
+    dist_from_quantiles(D, p1, q1, p2, q2)
+
+Construct a 2-parameter distribution `D` such that its `p1`-th quantile equals `q1`
+and its `p2`-th quantile equals `q2`.
+
+Supported for location-scale families (`Normal`, `Laplace`, `Logistic`, `Cauchy`, `Gumbel`)
+and for shape-scale families (`Gamma`, `Beta`) via numerical solving.
+
+See also: [`dist_from_q1_q3`](@ref), [`dist_from_median_iqr`](@ref)
+"""
+function dist_from_quantiles end
 
 function dist_from_quantiles(::Type{Normal}, p1::Number, q1::Number, p2::Number, q2::Number)
     (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
@@ -93,9 +117,6 @@ function dist_from_quantiles(::Type{Beta}, p1::Number, q1::Number, p2::Number, q
     (0 < q1 < 1 && 0 < q2 < 1) || throw(DomainError("Beta: quantiles must be in (0,1)"))
 
     # 2D Newton in log-space: solve for x = [log(α), log(β)]
-    # F(x) = [quantile(Beta(exp(x1), exp(x2)), p1) - q1,
-    #          quantile(Beta(exp(x1), exp(x2)), p2) - q2]
-
     # Initial guess from normal approximation
     z1 = quantile(Normal(), p1)
     z2 = quantile(Normal(), p2)
@@ -149,6 +170,17 @@ function dist_from_quantiles(::Type{Beta}, p1::Number, q1::Number, p2::Number, q
 end
 
 # --- Hybrid: mean + quantile ---
+
+"""
+    dist_from_mean_quantile(D, μ, p, q)
+
+Construct a 2-parameter distribution `D` with mean `μ` and `p`-th quantile equal to `q`.
+
+Supported distributions: `Gamma`, `Beta`.
+
+See also: [`dist_from_mean_median`](@ref)
+"""
+function dist_from_mean_quantile end
 
 function dist_from_mean_quantile(::Type{Gamma}, μ::Number, p::Number, q::Number)
     μ > 0 || throw(DomainError(μ, "Gamma: μ must be > 0"))

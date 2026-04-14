@@ -1,18 +1,82 @@
 # Variants that convert to mean+var and delegate
 
+"""
+    dist_from_mean_std(D, μ, σ)
+
+Construct distribution `D` from mean `μ` and standard deviation `σ`.
+Delegates to `dist_from_mean_var(D, μ, σ²)`.
+"""
 dist_from_mean_std(D, μ::Number, σ::Number) = dist_from_mean_var(D, μ, σ^2)
+
+"""
+    dist_from_mean_cv(D, μ, cv)
+
+Construct distribution `D` from mean `μ` and coefficient of variation `cv = σ/μ`.
+Delegates to `dist_from_mean_var(D, μ, (cv*μ)²)`.
+"""
 dist_from_mean_cv(D, μ::Number, cv::Number) = dist_from_mean_var(D, μ, (cv * μ)^2)
+
+"""
+    dist_from_mean_scv(D, μ, scv)
+
+Construct distribution `D` from mean `μ` and squared coefficient of variation `scv = σ²/μ²`.
+Delegates to `dist_from_mean_var(D, μ, scv*μ²)`.
+"""
 dist_from_mean_scv(D, μ::Number, scv::Number) = dist_from_mean_var(D, μ, scv * μ^2)
+
+"""
+    dist_from_mean_second_moment(D, μ, m2)
+
+Construct distribution `D` from mean `μ` and second moment `m2 = E[X²]`.
+Delegates to `dist_from_mean_var(D, μ, m2 - μ²)`.
+"""
 dist_from_mean_second_moment(D, μ::Number, m2::Number) = dist_from_mean_var(D, μ, m2 - μ^2)
 
+"""
+    exists_unique_dist_from_mean_std(D, μ, σ)
+
+Check feasibility for `dist_from_mean_std`. See [`exists_unique_dist_from_mean_var`](@ref).
+"""
 exists_unique_dist_from_mean_std(D, μ::Number, σ::Number) = exists_unique_dist_from_mean_var(D, μ, σ^2)
+
+"""
+    exists_unique_dist_from_mean_cv(D, μ, cv)
+
+Check feasibility for `dist_from_mean_cv`. See [`exists_unique_dist_from_mean_var`](@ref).
+"""
 exists_unique_dist_from_mean_cv(D, μ::Number, cv::Number) = exists_unique_dist_from_mean_var(D, μ, (cv * μ)^2)
+
+"""
+    exists_unique_dist_from_mean_scv(D, μ, scv)
+
+Check feasibility for `dist_from_mean_scv`. See [`exists_unique_dist_from_mean_var`](@ref).
+"""
 exists_unique_dist_from_mean_scv(D, μ::Number, scv::Number) = exists_unique_dist_from_mean_var(D, μ, scv * μ^2)
+
+"""
+    exists_unique_dist_from_mean_second_moment(D, μ, m2)
+
+Check feasibility for `dist_from_mean_second_moment`. See [`exists_unique_dist_from_mean_var`](@ref).
+"""
 exists_unique_dist_from_mean_second_moment(D, μ::Number, m2::Number) = exists_unique_dist_from_mean_var(D, μ, m2 - μ^2)
 
 # Variants that only take a dispersion measure (for 1-parameter distributions where mean is determined)
 
+"""
+    dist_from_var(D, var)
+
+Construct a 1-parameter distribution `D` from variance alone. Only supported for
+distributions where the mean is uniquely determined by the variance:
+`Exponential`, `Poisson`, `Chisq`, `Rayleigh`, `Geometric`.
+"""
 dist_from_var(D, var::Number) = dist_from_mean_var(D, _mean_from_var(D, var), var)
+
+"""
+    dist_from_std(D, σ)
+
+Construct a 1-parameter distribution `D` from standard deviation alone.
+Delegates to `dist_from_var(D, σ²)`.
+"""
 dist_from_std(D, σ::Number) = dist_from_var(D, σ^2)
 
 # mean-from-var helpers for 1-parameter distributions where var determines mean
@@ -26,9 +90,44 @@ _mean_from_var(::Type{D}, var::Number) where {D<:Distribution} =
 
 # Quantile convenience wrappers (delegate to dist_from_quantile / dist_from_quantiles)
 
+"""
+    dist_from_median(D, m)
+
+Construct distribution `D` from its median. Equivalent to `dist_from_quantile(D, 0.5, m)`.
+"""
 dist_from_median(D, m::Number) = dist_from_quantile(D, 0.5, m)
+
+"""
+    dist_from_q1(D, q)
+
+Construct distribution `D` from its first quartile. Equivalent to `dist_from_quantile(D, 0.25, q)`.
+"""
 dist_from_q1(D, q::Number) = dist_from_quantile(D, 0.25, q)
+
+"""
+    dist_from_q3(D, q)
+
+Construct distribution `D` from its third quartile. Equivalent to `dist_from_quantile(D, 0.75, q)`.
+"""
 dist_from_q3(D, q::Number) = dist_from_quantile(D, 0.75, q)
+
+"""
+    dist_from_q1_q3(D, q1, q3)
+
+Construct distribution `D` from its first and third quartiles.
+"""
 dist_from_q1_q3(D, q1::Number, q3::Number) = dist_from_quantiles(D, 0.25, q1, 0.75, q3)
+
+"""
+    dist_from_median_iqr(D, median, iqr)
+
+Construct distribution `D` from its median and interquartile range.
+"""
 dist_from_median_iqr(D, median::Number, iqr::Number) = dist_from_quantiles(D, 0.25, median - iqr / 2, 0.75, median + iqr / 2)
+
+"""
+    dist_from_mean_median(D, μ, median)
+
+Construct distribution `D` from its mean and median.
+"""
 dist_from_mean_median(D, μ::Number, median::Number) = dist_from_mean_quantile(D, μ, 0.5, median)
