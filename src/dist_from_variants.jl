@@ -20,6 +20,7 @@ _mean_from_var(::Type{Exponential}, var::Number) = √var                       
 _mean_from_var(::Type{Poisson}, var::Number) = var                             # var = μ
 _mean_from_var(::Type{Chisq}, var::Number) = var / 2                           # var = 2μ
 _mean_from_var(::Type{Rayleigh}, var::Number) = √(var * π / (4 - π))          # var = μ²(4-π)/π
+_mean_from_var(::Type{Geometric}, var::Number) = (-1 + √(1 + 4var)) / 2      # var = μ(1+μ)
 _mean_from_var(::Type{D}, var::Number) where {D<:Distribution} =
     throw(ErrorException("$D: dist_from_var not supported (mean is not determined by variance alone)"))
 

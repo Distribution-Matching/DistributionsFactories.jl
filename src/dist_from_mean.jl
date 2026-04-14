@@ -21,3 +21,9 @@ function dist_from_mean(::Type{Chisq}, μ::Number)
     isinteger(μ) || throw(DomainError(μ, "Chisq: μ must be a positive integer"))
     return Chisq(μ)
 end
+
+function dist_from_mean(::Type{Geometric}, μ::Number)
+    μ > 0 || throw(DomainError(μ, "Geometric: μ must be > 0"))
+    p = 1 / (1 + μ)
+    return Geometric(p)
+end

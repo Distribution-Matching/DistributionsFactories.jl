@@ -222,27 +222,62 @@ end
 # --- Not yet implemented ---
 
 function exists_unique_dist_from_mean_var(::Type{Pareto}, μ::Number, var::Number)
-    throw(ErrorException("Pareto: exists_unique_dist_from_mean_var not yet implemented"))
+    base_exists_unique_dist_from_mean_var(Pareto, μ, var)
+    if μ ≤ 0
+        throw(DomainError("Pareto: the condition μ > 0 is not satisfied"))
+    end
+    CV² = var / μ^2
+    α = 1 + √(1 + 1/CV²)
+    if α ≤ 2
+        throw(DomainError("Pareto: the condition α > 2 is not satisfied (variance is infinite for α ≤ 2)"))
+    end
+    return true
 end
 
 function exists_unique_dist_from_mean_var(::Type{FoldedNormal}, μ::Number, var::Number)
-    throw(ErrorException("FoldedNormal: exists_unique_dist_from_mean_var not yet implemented"))
+    base_exists_unique_dist_from_mean_var(FoldedNormal, μ, var)
+    if μ ≤ 0
+        throw(DomainError("FoldedNormal: the condition μ > 0 is not satisfied"))
+    end
+    return true
 end
 
 function exists_unique_dist_from_mean_var(::Type{Geometric}, μ::Number, var::Number)
-    throw(ErrorException("Geometric: exists_unique_dist_from_mean_var not yet implemented"))
+    base_exists_unique_dist_from_mean_var(Geometric, μ, var)
+    if μ ≤ 0
+        throw(DomainError("Geometric: the condition μ > 0 is not satisfied"))
+    end
+    if !isapprox(var, μ * (1 + μ); rtol=1e-10)
+        throw(DomainError("Geometric: the condition var = μ(1+μ) is not satisfied"))
+    end
+    return true
 end
 
 function exists_unique_dist_from_mean_var(d::Truncated{<:Normal}, μ::Number, var::Number)
-    throw(ErrorException("Truncated Normal: exists_unique_dist_from_mean_var not yet implemented"))
+    base_exists_unique_dist_from_mean_var(Normal, μ, var)
+    lo, hi = extrema(d)
+    if μ ≤ lo || μ ≥ hi
+        throw(DomainError("Truncated Normal: μ must be in ($lo, $hi)"))
+    end
+    return true
 end
 
 function exists_unique_dist_from_mean_var(d::Truncated{<:Laplace}, μ::Number, var::Number)
-    throw(ErrorException("Truncated Laplace: exists_unique_dist_from_mean_var not yet implemented"))
+    base_exists_unique_dist_from_mean_var(Laplace, μ, var)
+    lo, hi = extrema(d)
+    if μ ≤ lo || μ ≥ hi
+        throw(DomainError("Truncated Laplace: μ must be in ($lo, $hi)"))
+    end
+    return true
 end
 
 function exists_unique_dist_from_mean_var(d::Truncated{<:Logistic}, μ::Number, var::Number)
-    throw(ErrorException("Truncated Logistic: exists_unique_dist_from_mean_var not yet implemented"))
+    base_exists_unique_dist_from_mean_var(Logistic, μ, var)
+    lo, hi = extrema(d)
+    if μ ≤ lo || μ ≥ hi
+        throw(DomainError("Truncated Logistic: μ must be in ($lo, $hi)"))
+    end
+    return true
 end
 
 function exists_unique_dist_from_mean_var(::Type{TriangularDist}, μ::Number, var::Number)
@@ -250,7 +285,8 @@ function exists_unique_dist_from_mean_var(::Type{TriangularDist}, μ::Number, va
 end
 
 function exists_unique_dist_from_mean_var(::Type{SymTriangularDist}, μ::Number, var::Number)
-    throw(ErrorException("SymTriangularDist: exists_unique_dist_from_mean_var not yet implemented"))
+    base_exists_unique_dist_from_mean_var(SymTriangularDist, μ, var)
+    return true
 end
 
 function exists_unique_dist_from_mean_var(::Type{DiscreteTriangular}, μ::Number, var::Number)
@@ -266,5 +302,15 @@ function exists_unique_dist_from_mean_var(::Type{TruncatedPoisson}, μ::Number, 
 end
 
 function exists_unique_dist_from_mean_var(::Type{DiscreteUniform}, μ::Number, var::Number)
-    throw(ErrorException("DiscreteUniform: exists_unique_dist_from_mean_var not yet implemented"))
+    base_exists_unique_dist_from_mean_var(DiscreteUniform, μ, var)
+    n_raw = -1 + √(1 + 12 * var)
+    if !isapprox(n_raw, round(n_raw); atol=1e-8) || round(n_raw) < 0
+        throw(DomainError("DiscreteUniform: n = b - a must be a non-negative integer (got n ≈ $n_raw)"))
+    end
+    n = round(Int, n_raw)
+    a_raw = μ - n / 2
+    if !isapprox(a_raw, round(a_raw); atol=1e-8)
+        throw(DomainError("DiscreteUniform: lower bound a must be an integer (got a ≈ $a_raw)"))
+    end
+    return true
 end

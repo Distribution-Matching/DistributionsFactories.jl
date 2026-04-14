@@ -4,6 +4,7 @@ using Distributions
 using SpecialFunctions
 using Polynomials
 using Roots
+using QuadGK
 
 # Marker types for distributions not in Distributions.jl
 abstract type AbstractDistributionsFactoriesType <: Distribution{Univariate, Continuous} end
