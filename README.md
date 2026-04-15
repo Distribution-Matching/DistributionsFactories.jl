@@ -29,7 +29,7 @@ When no valid distribution exists for the given moments, an exception is thrown:
 
 ```julia
 dist_from_mean_var(Exponential, 2.5, 1.5)
-# ERROR: DomainError with "Exponential: the condition σ̄² = μ̄² is not satisfied"
+# ERROR: DomainError: "Exponential: the condition σ̄² = μ̄² is not satisfied"
 ```
 
 Check feasibility before constructing:
@@ -38,6 +38,66 @@ Check feasibility before constructing:
 exists_dist_from_mean_var(Beta, 0.5, 0.1)
 # true
 ```
+
+## Distributions covered
+
+The following table lists all distributions covered by the package, matching Table 1 of the accompanying paper. The **Status** column indicates implementation state: **Yes** = fully implemented, **No** = not yet implemented. All distributions marked "Yes" support `dist_from_mean_var` construction and feasibility checking via `exists_dist_from_mean_var`.
+
+### Continuous distributions
+
+| # | Distribution | Support | Free params | Implemented | Method | Notes |
+|---|---|---|---|---|---|---|
+| 1 | Student's T | (-∞, ∞) | 3 | Yes | Direct formula | Type `TDist`; instance form for location-scale |
+| 2 | Normal | (-∞, ∞) | 2 | Yes | Direct formula | Special case of Student's T (ν → ∞) |
+| 3 | Cauchy | (-∞, ∞) | 2 | Quantile only | — | Moments undefined; use `dist_from_quantiles` |
+| 4 | Laplace | (-∞, ∞) | 2 | Yes | Direct formula | |
+| 5 | Logistic | (-∞, ∞) | 2 | Yes | Direct formula | |
+| 6 | Gamma | [0, ∞) | 2 | Yes | Direct formula | |
+| 7 | Erlang | [0, ∞) | 2 | Yes | Direct formula | Special case of Gamma (integer shape) |
+| 8 | Exponential | [0, ∞) | 1 | Yes | Direct formula | Special case of Gamma (α = 1); 1 DOF |
+| 9 | Chi-squared | [0, ∞) | 1 | Yes | Direct formula | Special case of Gamma; 1 DOF |
+| 10 | Log-normal | [0, ∞) | 2 | Yes | Direct formula | |
+| 11 | Weibull | [0, ∞) | 2 | Yes | Numerical (root-finding) | Beta-ratio equation |
+| 12 | Frechet | [0, ∞) | 2 | Yes | Numerical (root-finding) | Beta-ratio equation |
+| 13 | Gumbel | (-∞, ∞) | 2 | Yes | Direct formula | |
+| 14 | F distribution | [0, ∞) | 2 | Yes | Direct formula | Requires 1 < μ̄ < 2 |
+| 15 | Inverse Gamma | [0, ∞) | 2 | Yes | Direct formula | |
+| 16 | Half-truncated Normal | [0, ∞) | 2 | No | | |
+| 17 | Half-truncated Laplace | [0, ∞) | 2 | No | | |
+| 18 | Half-truncated Logistic | [0, ∞) | 2 | No | | |
+| 19 | Folded Normal | [0, ∞) | 1 | Yes | Numerical (2D Newton) | Returns parent Normal |
+| 20 | Pareto | [0, ∞) | 1 | Yes | Direct formula | |
+| 21 | Chi | [0, ∞) | 1 | Yes | Direct formula | |
+| 22 | Rayleigh | [0, ∞) | 1 | Yes | Direct formula | Special case of Chi (ν = 2); 1 DOF |
+| 23 | Triangular | [0, 1] | 1 | No | | |
+| 24 | Symmetric Triangular | [0, 1] | 0 | Yes | Direct formula | Type `SymTriangularDist`; adjusts support |
+| 25 | Beta | [0, 1] | 2 | Yes | Direct formula | |
+| 26 | Uniform | [0, 1] | 0 | Yes | Direct formula | Special case of Beta; adjusts support |
+| 27 | Doubly-truncated Normal | [0, 1] | 2 | No | | |
+| 28 | Doubly-truncated Laplace | [0, 1] | 2 | No | | |
+| 29 | Doubly-truncated Logistic | [0, 1] | 2 | No | | |
+
+### Discrete distributions
+
+| # | Distribution | Support | Free params | Implemented | Method | Notes |
+|---|---|---|---|---|---|---|
+| 30 | Discrete Triangular | {0, …, n} | 1 | No | | |
+| 31 | Discrete Sym. Triangular | {0, …, n} | 0 | No | | |
+| 32 | Binomial | {0, …, n} | 1 | Yes | Direct formula | |
+| 33 | Truncated Poisson | {0, …, n} | 1 | No | | |
+| 34 | Discrete Uniform | {0, …, n} | 0 | Yes | Direct formula | Adjusts support |
+| 35 | Negative Binomial | {0, 1, 2, …} | 2 | Yes | Direct formula | |
+| 36 | Geometric | {0, 1, 2, …} | 1 | Yes | Direct formula | Special case of Neg. Binomial; 1 DOF |
+| 37 | Poisson | {0, 1, 2, …} | 1 | Yes | Direct formula | 1 DOF |
+
+### Experimental / work in progress
+
+The following have initial code but are not fully validated:
+
+- **Truncated Normal on [a,b]** — 2D Newton solver with quadrature. Passes basic tests.
+- **Truncated Gamma on [a,b]** — same solver. Passes basic tests.
+- **Truncated Laplace on [a,b]** — same solver. Not yet tested end-to-end.
+- **Truncated Logistic on [a,b]** — same solver. Not yet tested end-to-end.
 
 ## Moment-based construction
 
@@ -52,7 +112,7 @@ The primary interface. Constructs a distribution of type `D` with mean `μ̄` an
 | `dist_from_mean_std(D, μ̄, σ̄)` | Mean and standard deviation |
 | `dist_from_mean_cv(D, μ̄, cv)` | Mean and coefficient of variation |
 | `dist_from_mean_scv(D, μ̄, scv)` | Mean and squared coefficient of variation |
-| `dist_from_mean_second_moment(D, μ̄, m2)` | Mean and second moment E[X^2] |
+| `dist_from_mean_second_moment(D, μ̄, m2)` | Mean and second moment E[X²] |
 | `dist_from_var(D, σ̄²)` | Variance only (1-parameter distributions) |
 | `dist_from_std(D, σ̄)` | Standard deviation only (1-parameter distributions) |
 | `dist_from_mean(D, μ̄)` | Mean only (1-parameter distributions) |
@@ -67,7 +127,7 @@ d = dist_from_var(Exponential, 4.0)
 
 ## Distributions on arbitrary supports
 
-By default, distributions are constructed on their natural support (e.g. Beta on [0,1], Gamma on [0,∞)). Pass a support interval as a fourth argument to place the distribution on a different domain.
+By default, distributions are constructed on their natural support (e.g. Beta on [0,1], Gamma on [0,∞)). Use `dist_from_mean_var_on_support` to place a distribution on a different domain.
 
 The function automatically determines whether to use an **affine transform** or **truncation**:
 
@@ -89,7 +149,7 @@ minimum(d)   # 3.0
 d = dist_from_mean_var_on_support(Gamma, 5.0, 3.0, support=-Inf..10)
 maximum(d)   # 10.0
 
-# Normal truncated to [0,1]
+# Normal truncated to [0,1] (experimental)
 d = dist_from_mean_var_on_support(Normal, 0.5, 0.04, support=0..1)
 minimum(d), maximum(d)   # (0.0, 1.0)
 ```
@@ -102,7 +162,7 @@ d = dist_from_mean_var_on_support(Binomial, 12.0, 1.2, support=10:15)
 minimum(d), maximum(d)   # (10, 15)
 ```
 
-Supports are specified using [IntervalSets.jl](https://github.com/JuliaMath/IntervalSets.jl) syntax (`a..b`) or Distributions.jl's `RealInterval` (e.g. `support(some_dist)`), and integer ranges (`a:b`) for discrete distributions.
+Supports are specified using [IntervalSets.jl](https://github.com/JuliaMath/IntervalSets.jl) syntax (`a..b`), Distributions.jl's `RealInterval` (e.g. `support(some_dist)`), or integer ranges (`a:b`) for discrete distributions.
 
 ## Quantile-based construction
 
@@ -149,11 +209,9 @@ Use `available_distributions` to find which distribution types are available for
 ```julia
 # What distributions live on [0,∞)?
 available_distributions(0..Inf)
-# [Gamma, Erlang, Exponential, LogNormal, Weibull, ...]
 
 # Which of those are feasible for μ̄=5, σ̄²=3?
 available_distributions(0..Inf, mean=5.0, var=3.0)
-# [Gamma, Erlang, LogNormal, Weibull, Frechet, ...]
 
 # Use the support of an existing distribution
 available_distributions(support(Beta(2, 3)), mean=0.5, std=0.2)
@@ -164,40 +222,15 @@ available_distributions(mean=5.0, cv=1.0)
 
 Moment specification via named arguments: `mean`, `var`, `std`, `cv`, `scv`, `second_moment`.
 
-## Supported distributions
-
-### Continuous (real line)
-
-`Normal`, `TDist`, `Cauchy` (quantile only), `Logistic`, `Laplace`, `Gumbel`, `SymTriangularDist`
-
-### Continuous (positive support)
-
-`Gamma`, `Erlang`, `Exponential`, `LogNormal`, `Weibull`, `Frechet`,
-`Chi`, `Chisq`, `Rayleigh`, `FDist`, `InverseGamma`, `Pareto`, `FoldedNormal`
-
-### Continuous (bounded)
-
-`Beta`, `Uniform`
-
-### Discrete
-
-`Binomial`, `Poisson`, `NegativeBinomial`, `Geometric`, `DiscreteUniform`
-
-### Not yet implemented
-
-`TriangularDist`, `DiscreteTriangular`, `DiscreteSymmetricTriangular`, `TruncatedPoisson`
-
 ## Algorithms
-
-Most distributions use direct closed-form formulas. For certain distributions, specialised algorithms are used:
 
 | Distribution | Method |
 |---|---|
-| Beta, Normal, Gamma, Logistic, Laplace, ... | Direct formula |
+| Normal, Beta, Gamma, Logistic, Laplace, Gumbel, LogNormal, ... | Direct formula |
 | Erlang, Binomial, DiscreteUniform | Direct formula (with integer rounding) |
 | Weibull, Frechet | Numerical root-finding (beta-ratio equation) |
-| FoldedNormal | 2D Newton iteration |
-| Truncated Normal, Laplace, Logistic, Gamma | 2D Newton iteration with quadrature |
+| Folded Normal | Numerical (2D Newton iteration) |
+| Truncated Normal, Gamma (experimental) | Numerical (2D Newton + quadrature) |
 | Quantile matching (Gamma, Beta) | Numerical root-finding |
 | Quantile matching (Normal, Laplace, Logistic, Cauchy, Gumbel) | Direct formula (location-scale) |
 | Arbitrary support (affine) | Moment transform + `LocationScale` wrapper |
