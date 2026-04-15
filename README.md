@@ -49,8 +49,8 @@ d = make_dist(Gamma, mean=5.0, var=3.0)
 d = make_dist(Gamma, mean=5.0, std=1.7)
 d = make_dist(Gamma, mean=5.0, cv=0.5)
 d = make_dist(Gamma, mean=5.0, scv=0.25)
-d = make_dist(Exponential, mean=3.0)           # 1 DOF: mean determines all
-d = make_dist(Exponential, var=4.0)             # 1 DOF: var determines all
+d = make_dist(Exponential, mean=3.0)           # 1 parameter: mean determines all
+d = make_dist(Exponential, var=4.0)             # 1 parameter: var determines all
 
 # --- Quantile-based construction ---
 
@@ -75,7 +75,7 @@ d = make_dist(spec, mean=5.0)         # solve θ from mean
 spec = @dist Logistic(2.0, _)         # fix μ=2, θ to be solved
 d = make_dist(spec, var=22.3)         # solve θ from variance
 
-spec = @dist TDist(7)                 # full instance, 7 DOF
+spec = @dist TDist(7)                 # full instance, ν=7 degrees of freedom
 d = make_dist(spec, mean=5.0, var=2.0)  # LocationScale wrap
 
 # --- Discovery ---
@@ -202,8 +202,8 @@ The following table lists all distributions covered by the package. **Yes** = fu
 | 6 | Gumbel | (-∞, ∞) | 2 | Yes | Direct formula | |
 | 7 | Gamma | [0, ∞) | 2 | Yes | Direct formula | |
 | 8 | Erlang | [0, ∞) | 2 | Yes | Direct formula | Special case of Gamma (integer shape) |
-| 9 | Exponential | [0, ∞) | 1 | Yes | Direct formula | Special case of Gamma; 1 DOF |
-| 10 | Chi-squared | [0, ∞) | 1 | Yes | Direct formula | Special case of Gamma; 1 DOF |
+| 9 | Exponential | [0, ∞) | 1 | Yes | Direct formula | Special case of Gamma; 1 free parameter |
+| 10 | Chi-squared | [0, ∞) | 1 | Yes | Direct formula | Special case of Gamma; 1 free parameter |
 | 11 | Log-normal | [0, ∞) | 2 | Yes | Direct formula | |
 | 12 | Weibull | [0, ∞) | 2 | Yes | Numerical (root-finding) | Beta-ratio equation |
 | 13 | Frechet | [0, ∞) | 2 | Yes | Numerical (root-finding) | Beta-ratio equation |
@@ -212,7 +212,7 @@ The following table lists all distributions covered by the package. **Yes** = fu
 | 16 | Folded Normal | [0, ∞) | 1 | Yes | Numerical (2D Newton) | Returns parent Normal |
 | 17 | Pareto | [0, ∞) | 1 | Yes | Direct formula | |
 | 18 | Chi | [0, ∞) | 1 | Yes | Direct formula | |
-| 19 | Rayleigh | [0, ∞) | 1 | Yes | Direct formula | Special case of Chi; 1 DOF |
+| 19 | Rayleigh | [0, ∞) | 1 | Yes | Direct formula | Special case of Chi; 1 free parameter |
 | 20 | Half-truncated Normal | [0, ∞) | 2 | No | | |
 | 21 | Half-truncated Laplace | [0, ∞) | 2 | No | | |
 | 22 | Half-truncated Logistic | [0, ∞) | 2 | No | | |
@@ -231,7 +231,7 @@ The following table lists all distributions covered by the package. **Yes** = fu
 | 30 | Binomial | {0, …, n} | 1 | Yes | Direct formula | |
 | 31 | Discrete Uniform | {0, …, n} | 0 | Yes | Direct formula | Adjusts support |
 | 32 | Negative Binomial | {0, 1, 2, …} | 2 | Yes | Direct formula | |
-| 33 | Geometric | {0, 1, 2, …} | 1 | Yes | Direct formula | Special case of Neg. Binomial; 1 DOF |
+| 33 | Geometric | {0, 1, 2, …} | 1 | Yes | Direct formula | Special case of Neg. Binomial; 1 free parameter |
 | 34 | Poisson | {0, 1, 2, …} | 1 | Yes | Direct formula | 1 DOF |
 | 35 | Discrete Triangular | {0, …, n} | 1 | No | | |
 | 36 | Discrete Sym. Triangular | {0, …, n} | 0 | No | | |
