@@ -203,43 +203,23 @@ d = make_dist(spec, mean=5.0)
 d = make_dist(@dist(Gamma(3.0, _)), mean=5.0)
 ```
 
-### Lower-level functions
+### Internal functions
 
 The `make_dist` API is built on these internal functions. They are not exported but
 can be accessed via `DistributionsFactories.dist_from_mean_var(...)` etc.:
 
-| Function | Specification |
-|----------|--------------|
-| `dist_from_mean_var(D, μ̄, σ̄²)` | Mean and variance |
-| `dist_from_mean_std(D, μ̄, σ̄)` | Mean and standard deviation |
-| `dist_from_mean_cv(D, μ̄, cv)` | Mean and coefficient of variation |
-| `dist_from_mean_scv(D, μ̄, scv)` | Mean and squared coefficient of variation |
-| `dist_from_mean_second_moment(D, μ̄, m2)` | Mean and second moment E[X²] |
-| `dist_from_mean(D, μ̄)` | Mean only |
-| `dist_from_var(D, σ̄²)` | Variance only |
-| `dist_from_std(D, σ̄)` | Standard deviation only |
-| `dist_from_quantile(D, p, q)` | Single quantile |
-| `dist_from_quantiles(D, p1, q1, p2, q2)` | Two quantiles |
-| `dist_from_median(D, m)` | Median |
-| `dist_from_q1(D, q)` / `dist_from_q3(D, q)` | Quartile |
-| `dist_from_q1_q3(D, q1, q3)` | First and third quartiles |
-| `dist_from_median_iqr(D, median, iqr)` | Median and IQR |
-| `dist_from_mean_quantile(D, μ̄, p, q)` | Mean and a quantile |
-| `dist_from_mean_median(D, μ̄, median)` | Mean and median |
-| `dist_from_mean_var_on_support(D, μ̄, σ̄²; support)` | Mean+var on arbitrary support |
-| `exists_dist_from_mean_var(D, μ̄, σ̄²)` | Feasibility check |
+| Function | Used for |
+|----------|----------|
+| `dist_from_mean_var(D, μ̄, σ̄²)` | Per-distribution moment matching (25+ methods) |
+| `dist_from_mean(D, μ̄)` | 1-parameter distributions (Exponential, Poisson, etc.) |
+| `dist_from_var(D, σ̄²)` | 1-parameter distributions where mean is determined by var |
+| `dist_from_quantile(D, p, q)` | Single quantile matching |
+| `dist_from_quantiles(D, p1, q1, p2, q2)` | Two-quantile matching |
+| `dist_from_mean_quantile(D, μ̄, p, q)` | Mean + quantile matching |
+| `exists_dist_from_mean_var(D, μ̄, σ̄²)` | Feasibility checking |
 
-All of these also accept `DistSpec` as the first argument.
-
-### Instance dispatch
-
-For distributions with a shape parameter (like TDist), passing an instance fixes
-the shape and uses LocationScale for arbitrary mean/variance:
-
-```julia
-d = make_dist(TDist(7), mean=5.0, var=2.0)
-# Equivalent to: dist_from_mean_var(TDist(7), 5.0, 2.0)
-```
+All conversions (std→var, cv→var, median→quantile, etc.) are handled by `make_dist`
+internally. These functions also accept `DistSpec` as the first argument.
 
 ## Distributions covered
 
