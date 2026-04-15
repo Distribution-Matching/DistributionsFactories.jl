@@ -56,6 +56,11 @@ struct ModeQuantileSpec
     q::Float64
 end
 
+struct ModeIQRSpec
+    mode::Float64
+    iqr::Float64
+end
+
 # --- Spec parser (the only "router") ---
 
 function _moment_spec(; mean=nothing, var=nothing, std=nothing,
@@ -89,6 +94,9 @@ function _moment_spec(; mean=nothing, var=nothing, std=nothing,
     end
     if mode !== nothing && q3 !== nothing
         return ModeQuantileSpec(mode, 0.75, q3)
+    end
+    if mode !== nothing && iqr !== nothing
+        return ModeIQRSpec(mode, iqr)
     end
     if mode !== nothing && mean === nothing && σ̄² === nothing
         return ModeSpec(mode)
@@ -193,6 +201,7 @@ _make_dist(D, s::ModeSpec) = dist_from_mode(D, s.mode)
 _make_dist(D, s::MeanModeSpec) = dist_from_mean_mode(D, s.μ̄, s.mode)
 _make_dist(D, s::ModeVarSpec) = dist_from_mode_var(D, s.mode, s.σ̄²)
 _make_dist(D, s::ModeQuantileSpec) = dist_from_mode_quantile(D, s.mode, s.p, s.q)
+_make_dist(D, s::ModeIQRSpec) = dist_from_mode_iqr(D, s.mode, s.iqr)
 
 # --- Dispatch on spec type: quantiles ---
 

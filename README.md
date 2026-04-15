@@ -60,6 +60,18 @@ d = make_dist(Normal, median=5.0, iqr=4.0)
 d = make_dist(Beta, mean=0.4, median=0.35)
 d = make_dist(Gamma, quantiles=[(0.1, 1.0), (0.9, 10.0)])
 
+# --- Mode-based construction ---
+
+d = make_dist(Rayleigh, mode=2.0)                  # 1 parameter: mode determines all
+d = make_dist(Gamma, mean=5.0, mode=3.0)           # mean + mode
+d = make_dist(Beta, mean=0.4, mode=0.3)            # mean + mode
+d = make_dist(Normal, mode=3.0, var=4.0)           # mode + variance
+d = make_dist(Gamma, mode=2.0, var=3.0)            # mode + variance (numerical)
+d = make_dist(Gamma, mode=2.0, median=3.0)         # mode + median
+d = make_dist(Gamma, mode=2.0, q3=5.0)             # mode + quantile
+d = make_dist(Normal, mode=3.0, iqr=4.0)           # mode + IQR
+d = make_dist(Gamma, mode=2.0, iqr=3.0)            # mode + IQR (numerical)
+
 # --- Arbitrary supports ---
 
 d = make_dist(Beta, mean=3.5, var=0.5, support=2..7)       # Beta on [2,7]
@@ -100,6 +112,7 @@ and quantile keywords. `D` can be a type, instance, or `DistSpec` (via `@dist`).
 | `cv` | Target coefficient of variation σ̄/μ̄ |
 | `scv` | Target squared coefficient of variation σ̄²/μ̄² |
 | `second_moment` | Target second moment E[X²] |
+| `mode` | Target mode (peak of PDF/PMF) |
 | `median` | Target median (0.5 quantile) |
 | `q1` | Target first quartile (0.25 quantile) |
 | `q3` | Target third quartile (0.75 quantile) |

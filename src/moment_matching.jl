@@ -884,6 +884,44 @@ end
 # 2-parameter: mode + var
 function dist_from_mode_var end
 
+function dist_from_mode_iqr end
+
+function dist_from_mode_iqr(::Type{Normal}, m::Number, iqr::Number)
+    # Normal: mode = μ, IQR = 2·z₀.₇₅·σ
+    σ = iqr / (2 * quantile(Normal(), 0.75))
+    return Normal(m, σ)
+end
+
+function dist_from_mode_iqr(::Type{Gamma}, m::Number, iqr::Number)
+    m >= 0 || throw(DomainError(m, "Gamma: mode must be ≥ 0"))
+    iqr > 0 || throw(DomainError(iqr, "Gamma: IQR must be > 0"))
+    # mode = (α-1)θ, IQR = q75 - q25. Solve numerically for α.
+    sol = find_zero(
+        logα -> begin
+            α = exp(logα) + 1  # ensure α > 1
+            θ = m / (α - 1)
+            d = Gamma(α, θ)
+            quantile(d, 0.75) - quantile(d, 0.25) - iqr
+        end,
+        0.0
+    )
+    α = exp(sol) + 1
+    θ = m / (α - 1)
+    return Gamma(α, θ)
+end
+
+function dist_from_mode_iqr(::Type{Logistic}, m::Number, iqr::Number)
+    # Logistic: mode = μ, IQR = 2·θ·ln(3)
+    θ = iqr / (2 * log(3))
+    return Logistic(m, θ)
+end
+
+function dist_from_mode_iqr(::Type{Laplace}, m::Number, iqr::Number)
+    # Laplace: mode = μ, IQR = 2·b·ln(2)
+    b = iqr / (2 * log(2))
+    return Laplace(m, b)
+end
+
 function dist_from_mode_var(::Type{Normal}, m::Number, σ̄²::Number)
     # mode = μ for Normal
     return Normal(m, √σ̄²)
