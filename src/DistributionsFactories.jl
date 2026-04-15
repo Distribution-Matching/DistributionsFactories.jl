@@ -37,6 +37,8 @@ include("dist_from_variants.jl")
 include("dist_from_mean.jl")
 include("dist_from_quantile.jl")
 include("dist_on_support.jl")
+include("partial_dist.jl")
+include("dist_macro.jl")
 include("available_distributions.jl")
 
 export dist_from_mean_var_on_support,
@@ -63,6 +65,8 @@ export dist_from_mean_var_on_support,
         exists_dist_from_mean_scv,
         exists_dist_from_mean_second_moment,
         available_distributions,
+        PartialDist,
+        @dist,
         ..,
         FoldedNormal,
         DiscreteTriangular,
