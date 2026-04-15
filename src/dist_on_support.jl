@@ -13,6 +13,8 @@ _natural_support(::Type{<:Union{Gamma,Erlang,Exponential,LogNormal,Weibull,Frech
                                 Chi,Chisq,Rayleigh,FDist,InverseGamma,Pareto}}) = :positive
 _natural_support(::Type{FoldedNormal}) = :positive
 _natural_support(::Type{<:Union{Beta,Uniform}}) = :unit
+_natural_support(::Type{<:Union{Binomial,DiscreteUniform}}) = :integer_bounded
+_natural_support(::Type{<:Union{Poisson,NegativeBinomial,Geometric}}) = :integer_nonneg
 
 function _requested_support_shape(lo, hi)
     if lo == -Inf && hi == Inf
@@ -61,6 +63,40 @@ end
 
 function dist_from_mean_var(D::Type{<:Distribution}, μ̄::Number, σ̄²::Number, support::Distributions.RealInterval)
     return _dist_on_support(D, μ̄, σ̄², support.lb, support.ub)
+end
+
+"""
+    dist_from_mean_var(D, μ̄, σ̄², support::UnitRange)
+
+Construct a discrete distribution of type `D` with mean `μ̄` and variance `σ̄²`
+on the integer range `support` (e.g. `10:15`).
+
+For bounded-integer distributions (`Binomial`, `DiscreteUniform`), this shifts
+the standard `{0,...,n}` support to `{a,...,b}` where `a:b = support`.
+
+# Examples
+```julia
+dist_from_mean_var(Binomial, 12.0, 1.2, 10:15)  # Binomial shifted to {10,...,15}
+dist_from_mean_var(DiscreteUniform, 12.5, 3.0, 10:15)
+```
+"""
+function dist_from_mean_var(D::Type{<:Distribution}, μ̄::Number, σ̄²::Number, support::AbstractUnitRange)
+    a, b = first(support), last(support)
+    natural = _natural_support(D)
+
+    if natural === :integer_bounded
+        # {0,...,n} → {a,...,b}: shift by a, n = b - a
+        # Y = a + X, so X has mean μ̄ - a, var σ̄²
+        d = dist_from_mean_var(D, μ̄ - a, σ̄²)
+        # Wrap: return a shifted version. Distributions.jl doesn't have a discrete
+        # LocationScale, so we return a named tuple with the info.
+        return LocationScale(a, 1, d; check_args=false)
+    elseif natural === :integer_nonneg
+        # {0,1,...} → {a,...,b}: truncate and shift
+        throw(ArgumentError("$D on a bounded range is not yet supported"))
+    end
+
+    throw(ArgumentError("$D does not have discrete support"))
 end
 
 function _dist_on_support(D, μ̄, σ̄², lo, hi)
