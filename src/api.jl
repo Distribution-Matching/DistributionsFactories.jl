@@ -36,12 +36,32 @@ struct MeanQuantileSpec
     q::Float64
 end
 
+struct ModeSpec
+    mode::Float64
+end
+
+struct MeanModeSpec
+    μ̄::Float64
+    mode::Float64
+end
+
+struct ModeVarSpec
+    mode::Float64
+    σ̄²::Float64
+end
+
+struct ModeQuantileSpec
+    mode::Float64
+    p::Float64
+    q::Float64
+end
+
 # --- Spec parser (the only "router") ---
 
 function _moment_spec(; mean=nothing, var=nothing, std=nothing,
                        cv=nothing, scv=nothing, second_moment=nothing,
                        median=nothing, q1=nothing, q3=nothing, iqr=nothing,
-                       quantiles=nothing)
+                       quantiles=nothing, mode=nothing)
     # Resolve variance from alternative dispersion measures
     σ̄² = var
     if σ̄² === nothing && std !== nothing
@@ -52,6 +72,26 @@ function _moment_spec(; mean=nothing, var=nothing, std=nothing,
         σ̄² = scv * mean^2
     elseif σ̄² === nothing && mean !== nothing && second_moment !== nothing
         σ̄² = second_moment - mean^2
+    end
+
+    # Mode-based specs
+    if mode !== nothing && mean !== nothing && σ̄² === nothing
+        return MeanModeSpec(mean, mode)
+    end
+    if mode !== nothing && σ̄² !== nothing
+        return ModeVarSpec(mode, σ̄²)
+    end
+    if mode !== nothing && median !== nothing
+        return ModeQuantileSpec(mode, 0.5, median)
+    end
+    if mode !== nothing && q1 !== nothing
+        return ModeQuantileSpec(mode, 0.25, q1)
+    end
+    if mode !== nothing && q3 !== nothing
+        return ModeQuantileSpec(mode, 0.75, q3)
+    end
+    if mode !== nothing && mean === nothing && σ̄² === nothing
+        return ModeSpec(mode)
     end
 
     # Quantile-based specs
@@ -146,6 +186,13 @@ end
 _make_dist(D, s::MeanVarSpec) = dist_from_mean_var(D, s.μ̄, s.σ̄²)
 _make_dist(D, s::MeanSpec) = dist_from_mean(D, s.μ̄)
 _make_dist(D, s::VarSpec) = dist_from_var(D, s.σ̄²)
+
+# --- Dispatch on spec type: mode ---
+
+_make_dist(D, s::ModeSpec) = dist_from_mode(D, s.mode)
+_make_dist(D, s::MeanModeSpec) = dist_from_mean_mode(D, s.μ̄, s.mode)
+_make_dist(D, s::ModeVarSpec) = dist_from_mode_var(D, s.mode, s.σ̄²)
+_make_dist(D, s::ModeQuantileSpec) = dist_from_mode_quantile(D, s.mode, s.p, s.q)
 
 # --- Dispatch on spec type: quantiles ---
 

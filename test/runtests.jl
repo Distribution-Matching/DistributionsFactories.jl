@@ -129,6 +129,11 @@ end
     @test test_make_dist_support_shift()
     @test test_make_dist_partial_mean()
     @test test_make_dist_partial_var()
+    @test test_make_dist_mode_rayleigh()
+    @test test_make_dist_mean_mode_gamma()
+    @test test_make_dist_mean_mode_beta()
+    @test test_make_dist_mode_var_normal()
+    @test test_make_dist_mode_var_gamma()
     @test test_dist_exists_true()
     @test test_dist_exists_false()
 end

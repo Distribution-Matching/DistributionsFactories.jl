@@ -834,3 +834,93 @@ _mean_from_var(::Type{Rayleigh}, σ̄²::Number) = √(σ̄² * π / (4 - π))  
 _mean_from_var(::Type{Geometric}, σ̄²::Number) = (-1 + √(1 + 4σ̄²)) / 2        # σ̄² = μ̄(1+μ̄)
 _mean_from_var(::Type{D}, σ̄²::Number) where {D<:Distribution} =
     throw(ErrorException("$D: dist_from_var not supported (mean is not determined by variance alone)"))
+
+# --- Mode-based construction ---
+
+function dist_from_mode end
+
+# 1-parameter: mode determines everything
+function dist_from_mode(::Type{Rayleigh}, m::Number)
+    m > 0 || throw(DomainError(m, "Rayleigh: mode must be > 0"))
+    return Rayleigh(m)  # mode = σ
+end
+
+# 2-parameter: mode + mean
+function dist_from_mean_mode end
+
+function dist_from_mean_mode(::Type{Gamma}, μ̄::Number, m::Number)
+    μ̄ > 0 || throw(DomainError(μ̄, "Gamma: μ̄ must be > 0"))
+    μ̄ > m || throw(DomainError("Gamma: mean must be > mode (mean=$μ̄, mode=$m)"))
+    # mode = (α-1)θ, mean = αθ → θ = mean - mode, α = mean/θ
+    θ = μ̄ - m
+    α = μ̄ / θ
+    return Gamma(α, θ)
+end
+
+function dist_from_mean_mode(::Type{Normal}, μ̄::Number, m::Number)
+    # Normal: mode = mean, so this is only consistent if mode ≈ mean
+    isapprox(μ̄, m, atol=1e-10) || throw(DomainError(
+        "Normal: mode must equal mean (mean=$μ̄, mode=$m)"))
+    throw(ArgumentError("Normal: mode=mean, need another constraint (var, std, etc.)"))
+end
+
+function dist_from_mean_mode(::Type{Beta}, μ̄::Number, m::Number)
+    (0 < μ̄ < 1) || throw(DomainError(μ̄, "Beta: μ̄ must be in (0,1)"))
+    (0 < m < 1) || throw(DomainError(m, "Beta: mode must be in (0,1)"))
+    # mean = α/(α+β), mode = (α-1)/(α+β-2)
+    # From these two equations:
+    # α+β = α/μ̄  →  β = α(1-μ̄)/μ̄
+    # α+β-2 = (α-1)/m  →  α/μ̄ - 2 = (α-1)/m
+    # → α(1/μ̄ - 1/m) = 2 - 1/m  →  α = (2 - 1/m) / (1/μ̄ - 1/m)
+    # → α = (2m - 1) / (m/μ̄ - 1) = μ̄(2m - 1) / (m - μ̄)
+    (m != μ̄) || throw(DomainError("Beta: mode must differ from mean"))
+    α = μ̄ * (2m - 1) / (m - μ̄)
+    α > 1 || throw(DomainError("Beta: resulting α=$α must be > 1 for mode to exist"))
+    β = α * (1 - μ̄) / μ̄
+    β > 1 || throw(DomainError("Beta: resulting β=$β must be > 1 for mode to exist"))
+    return Beta(α, β)
+end
+
+# 2-parameter: mode + var
+function dist_from_mode_var end
+
+function dist_from_mode_var(::Type{Normal}, m::Number, σ̄²::Number)
+    # mode = μ for Normal
+    return Normal(m, √σ̄²)
+end
+
+function dist_from_mode_quantile end
+
+function dist_from_mode_quantile(::Type{Gamma}, m::Number, p::Number, q::Number)
+    m >= 0 || throw(DomainError(m, "Gamma: mode must be ≥ 0"))
+    (0 < p < 1) || throw(DomainError(p, "p must be in (0,1)"))
+    q > 0 || throw(DomainError(q, "Gamma: quantile must be > 0"))
+    # mode = (α-1)θ, quantile(Gamma(α,θ), p) = q
+    # Solve for α: given α, θ = mode/(α-1), then check quantile
+    sol = find_zero(
+        logα -> begin
+            α = exp(logα) + 1  # ensure α > 1
+            θ = m / (α - 1)
+            quantile(Gamma(α, θ), p) - q
+        end,
+        0.0  # initial guess: α ≈ 2
+    )
+    α = exp(sol) + 1
+    θ = m / (α - 1)
+    return Gamma(α, θ)
+end
+
+function dist_from_mode_var(::Type{Gamma}, m::Number, σ̄²::Number)
+    m >= 0 || throw(DomainError(m, "Gamma: mode must be ≥ 0"))
+    # mode = (α-1)θ, var = αθ²
+    # From var: θ² = var/α → θ = √(var/α)
+    # From mode: (α-1)√(var/α) = m → (α-1)²(var/α) = m²
+    # → var(α² - 2α + 1)/α = m² → var·α - 2var + var/α = m²
+    # Solve numerically
+    sol = find_zero(
+        α -> (α - 1) * √(σ̄² / α) - m,
+        max(m^2 / σ̄² + 1, 1.1)  # initial guess
+    )
+    θ = √(σ̄² / sol)
+    return Gamma(sol, θ)
+end

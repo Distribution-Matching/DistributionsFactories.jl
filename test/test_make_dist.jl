@@ -115,6 +115,45 @@ function test_dist_exists_true()
     return dist_exists(Beta, mean=0.5, var=0.1)
 end
 
+# --- Mode-based ---
+
+function test_make_dist_mode_rayleigh()
+    d = make_dist(Rayleigh, mode=2.0)
+    isapprox(mode(d), 2.0, atol=1e-8) || return false
+    isapprox(params(d)[1], 2.0, atol=1e-8) || return false
+    return true
+end
+
+function test_make_dist_mean_mode_gamma()
+    d = make_dist(Gamma, mean=5.0, mode=3.0)
+    isapprox(mean(d), 5.0, atol=1e-8) || return false
+    isapprox(mode(d), 3.0, atol=1e-8) || return false
+    return true
+end
+
+function test_make_dist_mean_mode_beta()
+    d = make_dist(Beta, mean=0.4, mode=0.3)
+    isapprox(mean(d), 0.4, atol=1e-6) || return false
+    isapprox(mode(d), 0.3, atol=1e-6) || return false
+    return true
+end
+
+function test_make_dist_mode_var_normal()
+    d = make_dist(Normal, mode=3.0, var=4.0)
+    isapprox(mean(d), 3.0, atol=1e-8) || return false
+    isapprox(var(d), 4.0, rtol=1e-8) || return false
+    return true
+end
+
+function test_make_dist_mode_var_gamma()
+    d = make_dist(Gamma, mode=2.0, var=3.0)
+    isapprox(mode(d), 2.0, atol=1e-6) || return false
+    isapprox(var(d), 3.0, rtol=1e-6) || return false
+    return true
+end
+
+# --- dist_exists ---
+
 function test_dist_exists_false()
     try
         dist_exists(Exponential, mean=2.5, var=1.5)
