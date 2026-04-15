@@ -9,6 +9,7 @@ include("test_numerical_aux_solvers.jl")
 include("test_available_distributions.jl")
 include("test_dist_on_support.jl")
 include("test_dist_macro.jl")
+include("test_make_dist.jl")
 
 
 @testset "Mean Var tests" begin
@@ -105,6 +106,26 @@ end
     @test test_partial_dist_from_mean_cv()
     @test test_partial_dist_from_mean_std()
     @test test_type_via_macro()
+end
+
+@testset "make_dist" begin
+    @test test_make_dist_mean_var()
+    @test test_make_dist_mean_std()
+    @test test_make_dist_mean_cv()
+    @test test_make_dist_mean_scv()
+    @test test_make_dist_mean_only()
+    @test test_make_dist_var_only()
+    @test test_make_dist_median()
+    @test test_make_dist_q1_q3()
+    @test test_make_dist_mean_median()
+    @test test_make_dist_median_iqr()
+    @test test_make_dist_quantiles()
+    @test test_make_dist_support_affine()
+    @test test_make_dist_support_shift()
+    @test test_make_dist_partial_mean()
+    @test test_make_dist_partial_var()
+    @test test_dist_exists_true()
+    @test test_dist_exists_false()
 end
 
 @testset "solve_beta_ratio" begin

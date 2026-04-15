@@ -18,23 +18,24 @@ using DistributionsFactories
 using Distributions
 
 # Construct a Gamma from mean and variance
-d = dist_from_mean_var(Gamma, 2.5, 1.5)
-mean(d), var(d)   # (2.5, 1.5)
+d = make_dist(Gamma, mean=5.0, var=3.0)
+mean(d), var(d)   # (5.0, 3.0)
 
-# Fix some parameters, solve the rest with @dist
-spec = @dist Gamma(3.0, _)
-d = dist_from_mean(spec, 5.0)   # fix α=3, solve θ from mean
+# From mean and coefficient of variation
+d = make_dist(Gamma, mean=10.0, cv=0.5)
 
-# What distributions are feasible for these moments on [0,∞)?
-available_distributions(0..Inf, mean=2.5, var=1.5)
-# [Gamma, Erlang, LogNormal, Weibull, Frechet, ...]
+# From a single quantile
+d = make_dist(Exponential, median=2.0)
+
+# From two quantiles
+d = make_dist(Normal, q1=10.0, q3=30.0)
 
 # Check feasibility
-exists_dist_from_mean_var(Beta, 0.5, 0.1)   # true
+dist_exists(Beta, mean=0.5, var=0.1)   # true
 
-# Infeasible moments throw an error
-dist_from_mean_var(Exponential, 2.5, 1.5)
-# ERROR: DomainError: "Exponential: the condition σ̄² = μ̄² is not satisfied"
+# What distributions are feasible for these moments on [0,∞)?
+available_distributions(0..Inf, mean=5.0, var=3.0)
+# [Gamma, Erlang, LogNormal, Weibull, Frechet, ...]
 ```
 
 ## Extended examples
@@ -44,146 +45,113 @@ using DistributionsFactories, Distributions
 
 # --- Moment-based construction ---
 
-# Gamma from mean and coefficient of variation
-d = dist_from_mean_cv(Gamma, 10.0, 0.5)
-mean(d), std(d) / mean(d)   # (10.0, 0.5)
-
-# Exponential from variance alone (1 DOF: mean is determined)
-d = dist_from_var(Exponential, 4.0)
-mean(d)   # 2.0
-
-# --- Arbitrary supports ---
-
-# Beta scaled from [0,1] to [2, 7]
-d = dist_from_mean_var_on_support(Beta, 3.5, 0.5, support=2..7)
-mean(d), minimum(d), maximum(d)   # (3.5, 2.0, 7.0)
-
-# Gamma shifted to [3, ∞)
-d = dist_from_mean_var_on_support(Gamma, 8.0, 3.0, support=3..Inf)
-mean(d), minimum(d)   # (8.0, 3.0)
-
-# Flipped Gamma on (-∞, 10]
-d = dist_from_mean_var_on_support(Gamma, 5.0, 3.0, support=-Inf..10)
-mean(d), maximum(d)   # (5.0, 10.0)
-
-# Binomial shifted from {0,...,5} to {10,...,15}
-d = dist_from_mean_var_on_support(Binomial, 12.0, 1.2, support=10:15)
-minimum(d), maximum(d)   # (10, 15)
-
-# --- Partial specification with @dist ---
-
-# Fix shape, solve scale from mean
-spec = @dist Gamma(3.0, _)
-d = dist_from_mean(spec, 5.0)
-params(d)   # (3.0, 1.667)
-
-# Fix location, solve scale from variance
-spec = @dist Logistic(2.0, _)
-d = dist_from_var(spec, 22.3)
-params(d)   # (2.0, 2.604)
-
-# TDist with fixed degrees of freedom, arbitrary mean and variance
-spec = @dist TDist(7)
-d = dist_from_mean_var(spec, 5.0, 2.0)
-mean(d), var(d)   # (5.0, 2.0)
+d = make_dist(Gamma, mean=5.0, var=3.0)
+d = make_dist(Gamma, mean=5.0, std=1.7)
+d = make_dist(Gamma, mean=5.0, cv=0.5)
+d = make_dist(Gamma, mean=5.0, scv=0.25)
+d = make_dist(Exponential, mean=3.0)           # 1 DOF: mean determines all
+d = make_dist(Exponential, var=4.0)             # 1 DOF: var determines all
 
 # --- Quantile-based construction ---
 
-# Normal from first and third quartiles
-d = dist_from_q1_q3(Normal, 10.0, 30.0)
-quantile(d, 0.25), quantile(d, 0.75)   # (10.0, 30.0)
+d = make_dist(Exponential, median=2.0)
+d = make_dist(Normal, q1=10.0, q3=30.0)
+d = make_dist(Normal, median=5.0, iqr=4.0)
+d = make_dist(Beta, mean=0.4, median=0.35)
+d = make_dist(Gamma, quantiles=[(0.1, 1.0), (0.9, 10.0)])
 
-# Beta with mean 0.4 and median 0.35
-d = dist_from_mean_median(Beta, 0.4, 0.35)
-mean(d), median(d)   # (0.4, 0.35)
+# --- Arbitrary supports ---
+
+d = make_dist(Beta, mean=3.5, var=0.5, support=2..7)       # Beta on [2,7]
+d = make_dist(Gamma, mean=8.0, var=3.0, support=3..Inf)    # Gamma on [3,∞)
+d = make_dist(Gamma, mean=5.0, var=3.0, support=-Inf..10)  # flipped Gamma on (-∞,10]
+d = make_dist(Binomial, mean=12.0, var=1.2, support=10:15) # Binomial on {10,...,15}
+
+# --- Partial specification with @dist ---
+
+spec = @dist Gamma(3.0, _)            # fix α=3, θ to be solved
+d = make_dist(spec, mean=5.0)         # solve θ from mean
+
+spec = @dist Logistic(2.0, _)         # fix μ=2, θ to be solved
+d = make_dist(spec, var=22.3)         # solve θ from variance
+
+spec = @dist TDist(7)                 # full instance, 7 DOF
+d = make_dist(spec, mean=5.0, var=2.0)  # LocationScale wrap
 
 # --- Discovery ---
 
-# What distributions can represent a positive r.v. with mean=5, var=25?
 available_distributions(0..Inf, mean=5.0, var=25.0)
-# [Gamma, Erlang, Exponential, LogNormal, Weibull, ...]
-
-# Use the support of an existing distribution
 available_distributions(support(Beta(2, 3)), mean=0.5, std=0.2)
-
-# Search across all supports
 available_distributions(mean=5.0, cv=1.0)
 ```
 
-## The `@dist` macro and `PartialDist`
+## API reference
 
-The `@dist` macro creates distribution specifications where `_` marks parameters
-to be solved from moment constraints. The result is a `PartialDist` that can be
-passed to any `dist_from_*` function.
+### `make_dist(D; kwargs...)`
+
+The primary interface. Constructs a distribution from any combination of moment
+and quantile keywords. `D` can be a type, instance, or `PartialDist` (via `@dist`).
+
+| Keyword | Meaning |
+|---------|---------|
+| `mean` | Target mean μ̄ |
+| `var` | Target variance σ̄² |
+| `std` | Target standard deviation σ̄ |
+| `cv` | Coefficient of variation σ̄/μ̄ |
+| `scv` | Squared coefficient of variation σ̄²/μ̄² |
+| `second_moment` | E[X²] |
+| `median` | Median (0.5 quantile) |
+| `q1` | First quartile (0.25 quantile) |
+| `q3` | Third quartile (0.75 quantile) |
+| `iqr` | Interquartile range (with `median`) |
+| `quantiles` | Vector of `(p, q)` tuples for arbitrary quantile matching |
+| `support` | Target support interval (`a..b`, `a..Inf`, `a:b`) |
+
+### `dist_exists(D; kwargs...)`
+
+Check whether a distribution of type `D` can be constructed with the given specification.
+Returns `true` or throws `DomainError`.
 
 ```julia
-# Create a partial spec — α is fixed, θ is to be solved
+dist_exists(Beta, mean=0.5, var=0.1)           # true
+dist_exists(Exponential, mean=2.5, var=1.5)    # throws DomainError
+```
+
+### `available_distributions(support; kwargs...)`
+
+Discover which distribution types are feasible for a given support and/or moments.
+
+```julia
+available_distributions(0..Inf)                    # all positive distributions
+available_distributions(0..Inf, mean=5.0, var=3.0) # filtered by moments
+available_distributions(mean=5.0, cv=1.0)          # across all supports
+```
+
+### The `@dist` macro and `PartialDist`
+
+Use `@dist` to create partial distribution specifications where `_` marks parameters
+to be solved. The result is a `PartialDist` passed to `make_dist`:
+
+```julia
 spec = @dist Gamma(3.0, _)
 fixed_params(spec)   # (α = 3.0,)
 free_params(spec)    # (:θ,)
+
+d = make_dist(spec, mean=5.0)       # solve θ from mean
+d = make_dist(spec, var=3.0)        # solve θ from variance
+d = make_dist(spec, mean=5.0, cv=0.5)  # solve θ from mean+cv
 ```
 
-Use it with any `dist_from_*` function — the free parameter is solved numerically:
-
-```julia
-spec = @dist Gamma(3.0, _)              # fix α=3, θ to be solved
-d = dist_from_mean(spec, 5.0)           # solve θ from mean
-
-spec = @dist Logistic(2.0, _)           # fix μ=2, θ to be solved
-d = dist_from_var(spec, 22.3)           # solve θ from variance
-d = dist_from_std(spec, 4.0)            # solve θ from std
-
-spec = @dist Normal(0.0, _)             # fix μ=0, σ to be solved
-d = dist_from_mean_var(spec, 0.0, 4.0)  # solve σ from mean+var
-
-spec = @dist Gamma(4.0, _)              # fix α=4, θ to be solved
-d = dist_from_mean_cv(spec, 5.0, 0.5)   # solve θ from mean+cv
-
-spec = @dist Normal(_, 2.0)             # fix σ=2, μ to be solved
-d = dist_from_mean_std(spec, 3.0, 2.0)  # solve μ from mean+std
-
-spec = @dist Beta(2.0, _)               # fix α=2, β to be solved
-d = dist_from_mean(spec, 0.4)           # solve β from mean
-```
-
-The macro also handles bare types and full instances:
-
-```julia
-spec = @dist Gamma                       # bare type
-d = dist_from_mean_var(spec, 5.0, 3.0)   # same as dist_from_mean_var(Gamma, ...)
-
-spec = @dist TDist(7)                    # full instance
-d = dist_from_mean_var(spec, 5.0, 2.0)   # wraps in LocationScale
-```
-
-The `PartialDist` type encodes which parameters are fixed vs free in the type system:
+The `PartialDist` type encodes fixed/free parameters in the type system:
 
 ```julia
 typeof(@dist Gamma(3.0, _))
 # PartialDist{Gamma, @NamedTuple{α::Float64, θ::Missing}}
 ```
 
-## Moment-based construction
+### Lower-level functions
 
-### `dist_from_mean_var(D, μ̄, σ̄²)`
-
-The primary interface. Constructs a distribution of type `D` with mean `μ̄` and variance `σ̄²`. The first argument `D` can be a type, a distribution instance, or a `PartialDist` (via `@dist`).
-
-```julia
-# Type: standard TDist with μ=0, determines ν from variance
-d = dist_from_mean_var(TDist, 0.0, 3.0)
-
-# Instance: TDist with fixed ν=7, arbitrary mean and variance via location-scale
-d = dist_from_mean_var(TDist(7), 5.0, 2.0)
-
-# PartialDist: fix one parameter, solve the other
-spec = @dist Normal(0.0, _)
-d = dist_from_mean_var(spec, 0.0, 4.0)
-```
-
-### Convenience wrappers
-
-All of these accept a type, instance, or `PartialDist` as the first argument.
+The `make_dist` API is built on these functions, which can also be used directly:
 
 | Function | Specification |
 |----------|--------------|
@@ -195,65 +163,28 @@ All of these accept a type, instance, or `PartialDist` as the first argument.
 | `dist_from_mean(D, μ̄)` | Mean only |
 | `dist_from_var(D, σ̄²)` | Variance only |
 | `dist_from_std(D, σ̄)` | Standard deviation only |
-
-### Feasibility checking
-
-Each `dist_from_*` function has a corresponding `exists_dist_from_*` that returns `true` or throws `DomainError`:
-
-| Function | Checks feasibility for |
-|----------|----------------------|
-| `exists_dist_from_mean_var(D, μ̄, σ̄²)` | `dist_from_mean_var` |
-| `exists_dist_from_mean_std(D, μ̄, σ̄)` | `dist_from_mean_std` |
-| `exists_dist_from_mean_cv(D, μ̄, cv)` | `dist_from_mean_cv` |
-| `exists_dist_from_mean_scv(D, μ̄, scv)` | `dist_from_mean_scv` |
-| `exists_dist_from_mean_second_moment(D, μ̄, m2)` | `dist_from_mean_second_moment` |
-
-## Distributions on arbitrary supports
-
-Use `dist_from_mean_var_on_support` to place a distribution on a non-standard domain.
-
-The function automatically determines whether to use an **affine transform** or **truncation**:
-
-- **Affine**: when the requested support has the same shape as the natural one (e.g. Beta on [2,7], Gamma on [3,∞)). Returns a `LocationScale` wrapper.
-- **Truncation** (experimental): when the requested support restricts the natural one (e.g. Normal on [0,1], Gamma on [0,10]). Returns a `Truncated` wrapper. Uses a 2D Newton solver with quadrature — works but not yet fully validated for all cases.
-
-```julia
-dist_from_mean_var_on_support(Beta, 3.5, 0.5, support=2..7)          # affine
-dist_from_mean_var_on_support(Gamma, 8.0, 3.0, support=3..Inf)       # affine shift
-dist_from_mean_var_on_support(Gamma, 5.0, 3.0, support=-Inf..10)     # affine flip
-dist_from_mean_var_on_support(Normal, 0.5, 0.04, support=0..1)       # truncation
-dist_from_mean_var_on_support(Binomial, 12.0, 1.2, support=10:15)    # discrete shift
-```
-
-Supports are specified using IntervalSets syntax (`a..b`), Distributions.jl's `RealInterval` (e.g. `support(some_dist)`), or integer ranges (`a:b`).
-
-## Quantile-based construction
-
-| Function | Specification |
-|----------|--------------|
 | `dist_from_quantile(D, p, q)` | Single quantile |
 | `dist_from_quantiles(D, p1, q1, p2, q2)` | Two quantiles |
 | `dist_from_median(D, m)` | Median |
-| `dist_from_q1(D, q)` | First quartile |
-| `dist_from_q3(D, q)` | Third quartile |
+| `dist_from_q1(D, q)` / `dist_from_q3(D, q)` | Quartile |
 | `dist_from_q1_q3(D, q1, q3)` | First and third quartiles |
 | `dist_from_median_iqr(D, median, iqr)` | Median and IQR |
 | `dist_from_mean_quantile(D, μ̄, p, q)` | Mean and a quantile |
 | `dist_from_mean_median(D, μ̄, median)` | Mean and median |
+| `dist_from_mean_var_on_support(D, μ̄, σ̄²; support)` | Mean+var on arbitrary support |
+| `exists_dist_from_mean_var(D, μ̄, σ̄²)` | Feasibility check |
 
-## Discovering available distributions
+All of these also accept `PartialDist` as the first argument.
 
-Use `available_distributions` to find which distribution types are available for a given support and/or moment specification.
+### Instance dispatch
+
+For distributions with a shape parameter (like TDist), passing an instance fixes
+the shape and uses LocationScale for arbitrary mean/variance:
 
 ```julia
-available_distributions(0..Inf)                          # by support
-available_distributions(0..Inf, mean=5.0, var=3.0)       # filtered by moments
-available_distributions(support(Beta(2, 3)), mean=0.5)   # from existing distribution
-available_distributions(0:10, mean=5.0, var=2.0)         # discrete
-available_distributions(mean=5.0, cv=1.0)                # across all supports
+d = make_dist(TDist(7), mean=5.0, var=2.0)
+# Equivalent to: dist_from_mean_var(TDist(7), 5.0, 2.0)
 ```
-
-Moment keywords: `mean`, `var`, `std`, `cv`, `scv`, `second_moment`.
 
 ## Distributions covered
 
@@ -265,7 +196,7 @@ The following table lists all distributions covered by the package. **Yes** = fu
 |---|---|---|---|---|---|---|
 | 1 | Student's T | (-∞, ∞) | 3 | Yes | Direct formula | Type `TDist`; instance form for location-scale |
 | 2 | Normal | (-∞, ∞) | 2 | Yes | Direct formula | |
-| 3 | Cauchy | (-∞, ∞) | 2 | Quantile only | — | Moments undefined; use `dist_from_quantiles` |
+| 3 | Cauchy | (-∞, ∞) | 2 | Quantile only | — | Moments undefined; use quantile matching |
 | 4 | Laplace | (-∞, ∞) | 2 | Yes | Direct formula | |
 | 5 | Logistic | (-∞, ∞) | 2 | Yes | Direct formula | |
 | 6 | Gumbel | (-∞, ∞) | 2 | Yes | Direct formula | |
