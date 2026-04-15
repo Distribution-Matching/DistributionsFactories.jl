@@ -2,13 +2,11 @@
     DistributionsFactories
 
 A Julia package for constructing probability distributions from moment specifications
-(mean, variance) and quantile specifications. Builds on
-[Distributions.jl](https://github.com/JuliaStats/Distributions.jl).
+(mean, variance) and quantile specifications, on standard or arbitrary supports.
+Builds on [Distributions.jl](https://github.com/JuliaStats/Distributions.jl).
 
-The main entry point is [`dist_from_mean_var`](@ref), which constructs a distribution
-of a given type from a target mean and variance. Additional interfaces include
-[`dist_from_mean_std`](@ref), [`dist_from_mean_cv`](@ref), [`dist_from_quantile`](@ref),
-and [`dist_from_mean`](@ref).
+The primary entry point is [`make_dist`](@ref). See also [`dist_exists`](@ref),
+[`available_distributions`](@ref), and the [`@dist`](@ref) macro.
 """
 module DistributionsFactories
 
@@ -30,48 +28,21 @@ struct DiscreteTriangular <: AbstractDistributionsFactoriesDiscreteType end
 struct DiscreteSymmetricTriangular <: AbstractDistributionsFactoriesDiscreteType end
 struct TruncatedPoisson <: AbstractDistributionsFactoriesDiscreteType end
 
-include("numerical_aux_solvers.jl")
-include("exists_dist_from_mean_var.jl")
-include("dist_from_mean_var.jl")
-include("dist_from_variants.jl")
-include("dist_from_mean.jl")
-include("dist_from_quantile.jl")
+include("solvers.jl")
+include("moment_matching.jl")
+include("quantile_matching.jl")
 include("partial_dist.jl")
-include("dist_macro.jl")
-include("dist_on_support.jl")
-include("make_dist.jl")
-include("available_distributions.jl")
+include("support.jl")
+include("api.jl")
 
+# Public API
 export make_dist,
         dist_exists,
-        dist_from_mean_var_on_support,
-        dist_from_mean_var,
-        dist_from_mean_std,
-        dist_from_mean_cv,
-        dist_from_mean_scv,
-        dist_from_mean_second_moment,
-        dist_from_var,
-        dist_from_std,
-        dist_from_mean,
-        dist_from_quantile,
-        dist_from_quantiles,
-        dist_from_median,
-        dist_from_q1,
-        dist_from_q3,
-        dist_from_median_iqr,
-        dist_from_q1_q3,
-        dist_from_mean_quantile,
-        dist_from_mean_median,
-        exists_dist_from_mean_var,
-        exists_dist_from_mean_std,
-        exists_dist_from_mean_cv,
-        exists_dist_from_mean_scv,
-        exists_dist_from_mean_second_moment,
         available_distributions,
+        @dist,
         PartialDist,
         fixed_params,
         free_params,
-        @dist,
         ..,
         FoldedNormal,
         DiscreteTriangular,

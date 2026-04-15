@@ -2,6 +2,15 @@ using Test
 using DistributionsFactories
 using Distributions
 
+# Import internal functions used by tests
+using DistributionsFactories: dist_from_mean_var, dist_from_mean, dist_from_var, dist_from_std,
+    dist_from_mean_std, dist_from_mean_cv, dist_from_mean_scv, dist_from_mean_second_moment,
+    dist_from_quantile, dist_from_quantiles, dist_from_median, dist_from_q1, dist_from_q3,
+    dist_from_q1_q3, dist_from_median_iqr, dist_from_mean_quantile, dist_from_mean_median,
+    dist_from_mean_var_on_support,
+    exists_dist_from_mean_var, exists_dist_from_mean_std,
+    exists_dist_from_mean_cv, exists_dist_from_mean_scv
+
 include("test_mean_var.jl")
 include("test_mean_variants.jl")
 include("test_quantile.jl")
