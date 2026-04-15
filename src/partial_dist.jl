@@ -13,9 +13,11 @@ PartialDist{Gamma}((α=3.0, θ=missing))   # fix α, fit θ
 PartialDist{Logistic}((μ=2.0, θ=missing)) # fix μ, fit θ
 ```
 """
-struct PartialDist{D<:Distribution}
-    params::NamedTuple
+struct PartialDist{D<:Distribution, NT<:NamedTuple}
+    params::NT
 end
+
+PartialDist{D}(nt::NT) where {D<:Distribution, NT<:NamedTuple} = PartialDist{D, NT}(nt)
 
 function _param_names(::Type{D}) where {D<:Distribution}
     return fieldnames(D)
