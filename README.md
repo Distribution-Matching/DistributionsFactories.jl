@@ -41,7 +41,7 @@ exists_dist_from_mean_var(Beta, 0.5, 0.1)
 
 ## Distributions covered
 
-The following table lists all distributions covered by the package, matching Table 1 of the accompanying paper. The **Status** column indicates implementation state: **Yes** = fully implemented, **No** = not yet implemented. All distributions marked "Yes" support `dist_from_mean_var` construction and feasibility checking via `exists_dist_from_mean_var`.
+The following table lists all distributions covered by the package. The **Status** column indicates implementation state: **Yes** = fully implemented, **No** = not yet implemented. All distributions marked "Yes" support `dist_from_mean_var` construction and feasibility checking via `exists_dist_from_mean_var`.
 
 ### Continuous distributions
 
@@ -235,6 +235,3 @@ Moment specification via named arguments: `mean`, `var`, `std`, `cv`, `scv`, `se
 | Quantile matching (Normal, Laplace, Logistic, Cauchy, Gumbel) | Direct formula (location-scale) |
 | Arbitrary support (affine) | Moment transform + `LocationScale` wrapper |
 
-## Reference
-
-Ashri, R., Moka, S., & Nazarathy, Y. (2026). DistributionsFactories.jl: Moment and Quantile Parameterised Probability Distributions. *Journal of Statistical Software* (submitted).
