@@ -22,7 +22,7 @@ Construct a 1-parameter distribution `D` such that its `p`-th quantile equals `q
 
 Supported distributions: `Exponential`.
 
-See also: [`dist_from_quantiles`](@ref), [`dist_from_median`](@ref)
+See also: [`dist_from_quantiles`](@ref), [`make_dist`](@ref)
 """
 function dist_from_quantile end
 
@@ -44,7 +44,7 @@ and its `p2`-th quantile equals `q2`.
 Direct formula for location-scale families (`Normal`, `Laplace`, `Logistic`, `Cauchy`, `Gumbel`).
 Numerical (root-finding) for shape-scale families (`Gamma`, `Beta`).
 
-See also: [`dist_from_q1_q3`](@ref), [`dist_from_median_iqr`](@ref)
+See also: [`make_dist`](@ref)
 """
 function dist_from_quantiles end
 
@@ -152,7 +152,7 @@ and `p`-th quantile equal to `q`.
 
 Supported distributions: `Gamma`, `Beta`.
 
-See also: [`dist_from_mean_median`](@ref)
+See also: [`make_dist`](@ref)
 """
 function dist_from_mean_quantile end
 

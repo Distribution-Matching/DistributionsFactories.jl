@@ -334,7 +334,7 @@ Dispatches on the distribution type (or instance for truncated/TDist).
 Throws `DomainError` if no valid distribution exists for the given moments.
 Use `exists_dist_from_mean_var` to check feasibility before calling.
 
-See also: [`dist_from_mean_std`](@ref), [`dist_from_mean_cv`](@ref),
+See also: [`make_dist`](@ref), [`exists_dist_from_mean_var`](@ref),
 [`exists_dist_from_mean_var`](@ref)
 """
 function dist_from_mean_var end
