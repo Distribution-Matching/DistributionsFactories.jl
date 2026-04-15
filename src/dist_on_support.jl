@@ -29,14 +29,14 @@ function _requested_support_shape(lo, hi)
     throw(ArgumentError("Invalid support endpoints: ($lo, $hi)"))
 end
 
-# --- Entry point ---
+# --- Public entry point ---
 
 """
-    dist_from_mean_var(D, μ̄, σ̄², support)
+    dist_from_mean_var_on_support(D, μ̄, σ̄²; support)
 
 Construct a distribution of type `D` with mean `μ̄` and variance `σ̄²` on the given
-`support` interval. Accepts IntervalSets intervals (`2..7`, `3..Inf`) or
-Distributions.jl `RealInterval`.
+`support`. Accepts IntervalSets intervals (`support=2..7`), Distributions.jl
+`RealInterval` (e.g. `support=support(some_dist)`), or integer ranges (`support=10:15`).
 
 The function automatically determines whether to use an **affine transform** or
 **truncation** based on the relationship between `D`'s natural support and the
@@ -49,55 +49,27 @@ requested support:
 
 # Examples
 ```julia
-dist_from_mean_var(Beta, 3.5, 0.5, 2..7)        # affine: Beta scaled to [2,7]
-dist_from_mean_var(Gamma, 5.0, 3.0, 2..Inf)     # affine: Gamma shifted to [2,∞)
-dist_from_mean_var(Gamma, 5.0, 3.0, -Inf..8)    # affine: flipped Gamma on (-∞,8]
-dist_from_mean_var(Normal, 0.5, 0.04, 0..1)     # truncation: Normal on [0,1]
-dist_from_mean_var(Gamma, 3.0, 1.0, 0..10)      # truncation: Gamma on [0,10]
+dist_from_mean_var(Beta, 3.5, 0.5, support=2..7)
+dist_from_mean_var(Gamma, 8.0, 3.0, support=3..Inf)
+dist_from_mean_var(Gamma, 5.0, 3.0, support=-Inf..8)
+dist_from_mean_var(Normal, 0.5, 0.04, support=0..1)
+dist_from_mean_var(Binomial, 12.0, 1.2, support=10:15)
 ```
 """
-function dist_from_mean_var(D::Type{<:Distribution}, μ̄::Number, σ̄²::Number, support::AbstractInterval)
-    lo, hi = endpoints(support)
-    return _dist_on_support(D, μ̄, σ̄², lo, hi)
-end
-
-function dist_from_mean_var(D::Type{<:Distribution}, μ̄::Number, σ̄²::Number, support::Distributions.RealInterval)
-    return _dist_on_support(D, μ̄, σ̄², support.lb, support.ub)
-end
-
-"""
-    dist_from_mean_var(D, μ̄, σ̄², support::UnitRange)
-
-Construct a discrete distribution of type `D` with mean `μ̄` and variance `σ̄²`
-on the integer range `support` (e.g. `10:15`).
-
-For bounded-integer distributions (`Binomial`, `DiscreteUniform`), this shifts
-the standard `{0,...,n}` support to `{a,...,b}` where `a:b = support`.
-
-# Examples
-```julia
-dist_from_mean_var(Binomial, 12.0, 1.2, 10:15)  # Binomial shifted to {10,...,15}
-dist_from_mean_var(DiscreteUniform, 12.5, 3.0, 10:15)
-```
-"""
-function dist_from_mean_var(D::Type{<:Distribution}, μ̄::Number, σ̄²::Number, support::AbstractUnitRange)
-    a, b = first(support), last(support)
-    natural = _natural_support(D)
-
-    if natural === :integer_bounded
-        # {0,...,n} → {a,...,b}: shift by a, n = b - a
-        # Y = a + X, so X has mean μ̄ - a, var σ̄²
-        d = dist_from_mean_var(D, μ̄ - a, σ̄²)
-        # Wrap: return a shifted version. Distributions.jl doesn't have a discrete
-        # LocationScale, so we return a named tuple with the info.
-        return LocationScale(a, 1, d; check_args=false)
-    elseif natural === :integer_nonneg
-        # {0,1,...} → {a,...,b}: truncate and shift
-        throw(ArgumentError("$D on a bounded range is not yet supported"))
+function dist_from_mean_var_on_support(D, μ̄, σ̄²; support)
+    if support isa AbstractInterval
+        lo, hi = endpoints(support)
+        return _dist_on_support(D, μ̄, σ̄², lo, hi)
+    elseif support isa Distributions.RealInterval
+        return _dist_on_support(D, μ̄, σ̄², support.lb, support.ub)
+    elseif support isa AbstractUnitRange
+        return _dist_on_support_discrete(D, μ̄, σ̄², support)
+    else
+        throw(ArgumentError("Unsupported `support` type: $(typeof(support)). Use an interval (a..b), RealInterval, or integer range (a:b)."))
     end
-
-    throw(ArgumentError("$D does not have discrete support"))
 end
+
+# --- Continuous support logic ---
 
 function _dist_on_support(D, μ̄, σ̄², lo, hi)
     natural = _natural_support(D)
@@ -108,20 +80,16 @@ function _dist_on_support(D, μ̄, σ̄², lo, hi)
         if requested === :real
             return dist_from_mean_var(D, μ̄, σ̄²)
         else
-            # Any restriction of (-∞,∞) is truncation
             return _truncated_from_mean_var(D, μ̄, σ̄², lo, hi)
         end
 
     # --- Positive distributions [0,∞) ---
     elseif natural === :positive
         if requested === :half_right
-            # [a, ∞): shift by a
             return _affine_shift(D, μ̄, σ̄², lo)
         elseif requested === :half_left
-            # (-∞, b]: flip and shift
             return _affine_flip(D, μ̄, σ̄², hi)
         elseif requested === :bounded
-            # [a, b]: truncation (possibly after shift)
             if lo >= 0
                 return _truncated_from_mean_var(D, μ̄, σ̄², lo, hi)
             else
@@ -134,7 +102,6 @@ function _dist_on_support(D, μ̄, σ̄², lo, hi)
     # --- Unit-interval distributions [0,1] ---
     elseif natural === :unit
         if requested === :bounded
-            # [a, b]: affine transform from [0,1] to [a,b]
             return _affine_scale(D, μ̄, σ̄², lo, hi)
         else
             throw(ArgumentError("Cannot place a $D (support [0,1]) on an unbounded interval"))
@@ -144,22 +111,35 @@ function _dist_on_support(D, μ̄, σ̄², lo, hi)
     throw(ArgumentError("Unsupported combination: $D on ($lo, $hi)"))
 end
 
+# --- Discrete support logic ---
+
+function _dist_on_support_discrete(D, μ̄, σ̄², r::AbstractUnitRange)
+    a = first(r)
+    natural = _natural_support(D)
+
+    if natural === :integer_bounded
+        d = dist_from_mean_var(D, μ̄ - a, σ̄²)
+        return LocationScale(a, 1, d; check_args=false)
+    elseif natural === :integer_nonneg
+        throw(ArgumentError("$D on a bounded range is not yet supported"))
+    end
+
+    throw(ArgumentError("$D does not have discrete support"))
+end
+
 # --- Affine transforms ---
 
 function _affine_shift(D, μ̄, σ̄², a)
-    # [0,∞) → [a,∞): Y = a + X, so X has mean μ̄-a, var σ̄²
     d = dist_from_mean_var(D, μ̄ - a, σ̄²)
     return LocationScale(Float64(a), 1.0, d)
 end
 
 function _affine_flip(D, μ̄, σ̄², b)
-    # [0,∞) → (-∞,b]: Y = b - X, so X has mean b-μ̄, var σ̄²
     d = dist_from_mean_var(D, b - μ̄, σ̄²)
     return LocationScale(Float64(b), -1.0, d; check_args=false)
 end
 
 function _affine_scale(D, μ̄, σ̄², a, b)
-    # [0,1] → [a,b]: Y = a + (b-a)X, so X has mean (μ̄-a)/(b-a), var σ̄²/(b-a)²
     w = b - a
     μ_std = (μ̄ - a) / w
     σ²_std = σ̄² / w^2

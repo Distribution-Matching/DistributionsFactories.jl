@@ -78,19 +78,19 @@ The function automatically determines whether to use an **affine transform** or 
 
 ```julia
 # Beta scaled from [0,1] to [2,7]
-d = dist_from_mean_var(Beta, 3.5, 0.5, 2..7)
+d = dist_from_mean_var_on_support(Beta, 3.5, 0.5, support=2..7)
 minimum(d), maximum(d)   # (2.0, 7.0)
 
 # Gamma shifted from [0,∞) to [3,∞)
-d = dist_from_mean_var(Gamma, 8.0, 3.0, 3..Inf)
+d = dist_from_mean_var_on_support(Gamma, 8.0, 3.0, support=3..Inf)
 minimum(d)   # 3.0
 
 # Flipped Gamma on (-∞,10]
-d = dist_from_mean_var(Gamma, 5.0, 3.0, -Inf..10)
+d = dist_from_mean_var_on_support(Gamma, 5.0, 3.0, support=-Inf..10)
 maximum(d)   # 10.0
 
 # Normal truncated to [0,1]
-d = dist_from_mean_var(Normal, 0.5, 0.04, 0..1)
+d = dist_from_mean_var_on_support(Normal, 0.5, 0.04, support=0..1)
 minimum(d), maximum(d)   # (0.0, 1.0)
 ```
 
@@ -98,7 +98,7 @@ minimum(d), maximum(d)   # (0.0, 1.0)
 
 ```julia
 # Binomial shifted from {0,...,5} to {10,...,15}
-d = dist_from_mean_var(Binomial, 12.0, 1.2, 10:15)
+d = dist_from_mean_var_on_support(Binomial, 12.0, 1.2, support=10:15)
 minimum(d), maximum(d)   # (10, 15)
 ```
 
