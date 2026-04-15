@@ -64,17 +64,12 @@ function dist_from_mean(p::DistSpec{D}, μ̄::Number) where {D}
 
     free_name = first(free)
 
-    # Solve: find the value of the free parameter such that mean(D(params...)) == μ̄
-    sol = find_zero(
-        x -> begin
-            full_params = _fill_params(p, free_name, x)
-            mean(D(full_params...)) - μ̄
-        end,
-        _initial_guess(D, free_name, μ̄)
-    )
+    sol = _solve_for_param(p, free_name,
+        x -> mean(D(_fill_params(p, free_name, x)...)) - μ̄,
+        _initial_guess(D, free_name, μ̄),
+        "mean=$μ̄")
 
-    full_params = _fill_params(p, free_name, sol)
-    return D(full_params...)
+    return D(_fill_params(p, free_name, sol)...)
 end
 
 """
@@ -108,14 +103,12 @@ function dist_from_mean_var(p::DistSpec{D}, μ̄::Number, σ̄²::Number) where 
         free_name = first(free)
         guess = _initial_guess(D, free_name, √σ̄²)
 
-        # Attempt 1: solve from variance
+        # Attempt 1: solve from variance, verify mean
         local d
         try
-            sol = find_zero(
-                x -> begin
-                    fp = _fill_params(p, free_name, x)
-                    var(D(fp...)) - σ̄²
-                end, guess)
+            sol = _solve_for_param(p, free_name,
+                x -> var(D(_fill_params(p, free_name, x)...)) - σ̄²,
+                guess, "var=$σ̄²")
             d = D(_fill_params(p, free_name, sol)...)
             if isapprox(mean(d), μ̄, rtol=1e-4)
                 return d
@@ -123,17 +116,19 @@ function dist_from_mean_var(p::DistSpec{D}, μ̄::Number, σ̄²::Number) where 
         catch
         end
 
-        # Attempt 2: solve from mean
-        sol = find_zero(
-            x -> begin
-                fp = _fill_params(p, free_name, x)
-                mean(D(fp...)) - μ̄
-            end, guess)
-        d = D(_fill_params(p, free_name, sol)...)
-        if !isapprox(var(d), σ̄², rtol=1e-4)
-            throw(DomainError("$D with fixed $(Dict(fixed)): cannot satisfy both μ̄=$μ̄ and σ̄²=$σ̄² with 1 free parameter"))
+        # Attempt 2: solve from mean, verify variance
+        try
+            sol = _solve_for_param(p, free_name,
+                x -> mean(D(_fill_params(p, free_name, x)...)) - μ̄,
+                guess, "mean=$μ̄")
+            d = D(_fill_params(p, free_name, sol)...)
+            if isapprox(var(d), σ̄², rtol=1e-4)
+                return d
+            end
+        catch
         end
-        return d
+
+        throw(DomainError("$D with fixed $(Dict(fixed)): cannot satisfy both μ̄=$μ̄ and σ̄²=$σ̄² with 1 free parameter"))
     elseif length(free) == 2
         # Two free parameters — solve from mean and variance via 2D Newton
         free_names = collect(free)
@@ -192,16 +187,13 @@ function dist_from_var(p::DistSpec{D}, σ̄²::Number) where {D}
         "dist_from_var with DistSpec requires exactly 1 missing parameter, got $(length(free)): $free"))
 
     free_name = first(free)
-    sol = find_zero(
-        x -> begin
-            full_params = _fill_params(p, free_name, x)
-            var(D(full_params...)) - σ̄²
-        end,
-        _initial_guess(D, free_name, √σ̄²)
-    )
 
-    full_params = _fill_params(p, free_name, sol)
-    return D(full_params...)
+    sol = _solve_for_param(p, free_name,
+        x -> var(D(_fill_params(p, free_name, x)...)) - σ̄²,
+        _initial_guess(D, free_name, √σ̄²),
+        "var=$σ̄²")
+
+    return D(_fill_params(p, free_name, sol)...)
 end
 
 # Convenience wrappers for DistSpec — delegate to dist_from_mean_var or dist_from_var
@@ -235,6 +227,18 @@ end
 function _initial_guess(::Type{D}, param_name::Symbol, hint::Number) where {D}
     # Generic initial guess — use hint magnitude, stay positive
     return max(abs(hint), 0.1)
+end
+
+function _solve_for_param(p::DistSpec{D}, free_name::Symbol, objective::Function, guess::Number, target_desc::String) where {D}
+    try
+        return find_zero(objective, guess)
+    catch e
+        if e isa Roots.ConvergenceFailed
+            fixed = Dict(k => p.params[k] for k in keys(p.params) if !ismissing(p.params[k]))
+            throw(DomainError("$D with fixed $fixed: cannot solve free parameter :$free_name to match target $target_desc. The free parameter may not affect this moment."))
+        end
+        rethrow()
+    end
 end
 
 
