@@ -74,24 +74,26 @@ function test_partial_dist_from_var()
     return true
 end
 
-function test_partial_dist_from_std()
-    d = dist_from_std(@dist(Logistic(2.0, _)), 3.0)
+function test_partial_via_make_dist_std()
+    spec = @dist Logistic(2.0, _)
+    d = make_dist(spec, std=3.0)
     isapprox(std(d), 3.0, rtol=1e-6) || return false
     isapprox(params(d)[1], 2.0, atol=1e-8) || return false
     return true
 end
 
-function test_partial_dist_from_mean_cv()
-    # Gamma(α=4, θ=?): with α=4, CV = 1/√α = 0.5, so mean=5 → θ=5/4, var=5²*0.25=6.25
-    d = dist_from_mean_cv(@dist(Gamma(4.0, _)), 5.0, 0.5)
+function test_partial_via_make_dist_mean_cv()
+    spec = @dist Gamma(4.0, _)
+    d = make_dist(spec, mean=5.0, cv=0.5)
     isapprox(mean(d), 5.0, atol=1e-6) || return false
     isapprox(std(d) / mean(d), 0.5, rtol=1e-6) || return false
     isapprox(params(d)[1], 4.0, atol=1e-8) || return false
     return true
 end
 
-function test_partial_dist_from_mean_std()
-    d = dist_from_mean_std(@dist(Normal(_, 2.0)), 3.0, 2.0)
+function test_partial_via_make_dist_mean_std()
+    spec = @dist Normal(_, 2.0)
+    d = make_dist(spec, mean=3.0, std=2.0)
     isapprox(mean(d), 3.0, atol=1e-8) || return false
     isapprox(std(d), 2.0, rtol=1e-8) || return false
     return true

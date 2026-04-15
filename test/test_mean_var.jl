@@ -411,23 +411,23 @@ end
 
 function test_dist_from_var_and_std()
     # Exponential: var=4 → μ=2
-    d = dist_from_var(Exponential, 4.0)
+    d = make_dist(Exponential, var=4.0)
     isapprox(mean(d), 2.0, atol=1e-8) || return false
     # Poisson: var=3 → μ=3
-    d = dist_from_var(Poisson, 3.0)
+    d = make_dist(Poisson, var=3.0)
     isapprox(mean(d), 3.0, atol=1e-8) || return false
     # Geometric: var=6 → μ=2
-    d = dist_from_var(Geometric, 6.0)
+    d = make_dist(Geometric, var=6.0)
     isapprox(mean(d), 2.0, atol=1e-8) || return false
-    # dist_from_std: Exponential std=2 → var=4 → μ=2
-    d = dist_from_std(Exponential, 2.0)
+    # std=2 → var=4 → μ=2
+    d = make_dist(Exponential, std=2.0)
     isapprox(mean(d), 2.0, atol=1e-8) || return false
     return true
 end
 
 function test_dist_from_mean_second_moment()
     # Gamma: μ=3, m2=12 → var=12-9=3
-    d = dist_from_mean_second_moment(Gamma, 3.0, 12.0)
+    d = make_dist(Gamma, mean=3.0, second_moment=12.0)
     isapprox(mean(d), 3.0, atol=1e-8) || return false
     isapprox(var(d), 3.0, rtol=1e-8) || return false
     return true

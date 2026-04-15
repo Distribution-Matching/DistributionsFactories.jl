@@ -5,7 +5,7 @@ function test_mean_std_roundtrip()
         (LogNormal, [(1.0, 0.5), (3.0, 1.0)]),
     ]
         for (μ, σ) in params_list
-            d = dist_from_mean_std(D, μ, σ)
+            d = make_dist(D, mean=μ, std=σ)
             if !isapprox(mean(d), μ, atol=1e-8) || !isapprox(std(d), σ, rtol=1e-8)
                 @info "Mismatch:", D, μ, σ, mean(d), std(d)
                 return false
@@ -22,7 +22,7 @@ function test_mean_cv_roundtrip()
         (Weibull,   [(3.0, 0.3), (1.0, 0.8)]),
     ]
         for (μ, cv) in params_list
-            d = dist_from_mean_cv(D, μ, cv)
+            d = make_dist(D, mean=μ, cv=cv)
             actual_cv = std(d) / mean(d)
             if !isapprox(mean(d), μ, atol=1e-8) || !isapprox(actual_cv, cv, rtol=1e-8)
                 @info "Mismatch:", D, μ, cv, mean(d), actual_cv
@@ -39,7 +39,7 @@ function test_mean_scv_roundtrip()
         (LogNormal, [(2.0, 0.25), (1.0, 1.0)]),
     ]
         for (μ, scv) in params_list
-            d = dist_from_mean_scv(D, μ, scv)
+            d = make_dist(D, mean=μ, scv=scv)
             actual_scv = var(d) / mean(d)^2
             if !isapprox(mean(d), μ, atol=1e-8) || !isapprox(actual_scv, scv, rtol=1e-8)
                 @info "Mismatch:", D, μ, scv, mean(d), actual_scv
@@ -57,10 +57,10 @@ function test_variants_consistency()
     cv = σ / μ
     scv = v / μ^2
 
-    d_var = dist_from_mean_var(Gamma, μ, v)
-    d_std = dist_from_mean_std(Gamma, μ, σ)
-    d_cv  = dist_from_mean_cv(Gamma, μ, cv)
-    d_scv = dist_from_mean_scv(Gamma, μ, scv)
+    d_var = make_dist(Gamma, mean=μ, var=v)
+    d_std = make_dist(Gamma, mean=μ, std=σ)
+    d_cv  = make_dist(Gamma, mean=μ, cv=cv)
+    d_scv = make_dist(Gamma, mean=μ, scv=scv)
 
     for d in [d_std, d_cv, d_scv]
         if !all(isapprox.(params(d_var), params(d), atol=1e-10))
@@ -73,14 +73,14 @@ end
 
 function test_exists_variants()
     # Valid cases
-    exists_dist_from_mean_std(Gamma, 2.0, 1.0) || return false
-    exists_dist_from_mean_cv(Gamma, 2.0, 0.5) || return false
-    exists_dist_from_mean_scv(Gamma, 2.0, 0.25) || return false
+    dist_exists(Gamma, mean=2.0, std=1.0) || return false
+    dist_exists(Gamma, mean=2.0, cv=0.5) || return false
+    dist_exists(Gamma, mean=2.0, scv=0.25) || return false
 
-    # Invalid: negative mean for Gamma propagates through
-    for f in [exists_dist_from_mean_std, exists_dist_from_mean_cv, exists_dist_from_mean_scv]
+    # Invalid: negative mean for Gamma
+    for kwargs in [(mean=-1.0, std=1.0), (mean=-1.0, cv=0.5), (mean=-1.0, scv=0.25)]
         try
-            f(Gamma, -1.0, 1.0)
+            dist_exists(Gamma; kwargs...)
             return false
         catch e
             e isa DomainError || return false

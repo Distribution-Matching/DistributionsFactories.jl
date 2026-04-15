@@ -3,13 +3,9 @@ using DistributionsFactories
 using Distributions
 
 # Import internal functions used by tests
-using DistributionsFactories: dist_from_mean_var, dist_from_mean, dist_from_var, dist_from_std,
-    dist_from_mean_std, dist_from_mean_cv, dist_from_mean_scv, dist_from_mean_second_moment,
-    dist_from_quantile, dist_from_quantiles, dist_from_median, dist_from_q1, dist_from_q3,
-    dist_from_q1_q3, dist_from_median_iqr, dist_from_mean_quantile, dist_from_mean_median,
-    dist_from_mean_var_on_support,
-    exists_dist_from_mean_var, exists_dist_from_mean_std,
-    exists_dist_from_mean_cv, exists_dist_from_mean_scv
+using DistributionsFactories: dist_from_mean_var, dist_from_mean, dist_from_var,
+    dist_from_quantile, dist_from_quantiles, dist_from_mean_quantile,
+    dist_from_mean_var_on_support, exists_dist_from_mean_var
 
 include("test_mean_var.jl")
 include("test_mean_variants.jl")
@@ -111,9 +107,9 @@ end
     @test test_partial_beta()
     @test test_instance_tdist()
     @test test_partial_dist_from_var()
-    @test test_partial_dist_from_std()
-    @test test_partial_dist_from_mean_cv()
-    @test test_partial_dist_from_mean_std()
+    @test test_partial_via_make_dist_std()
+    @test test_partial_via_make_dist_mean_cv()
+    @test test_partial_via_make_dist_mean_std()
     @test test_type_via_macro()
 end
 

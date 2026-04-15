@@ -196,13 +196,6 @@ function dist_from_var(p::DistSpec{D}, σ̄²::Number) where {D}
     return D(_fill_params(p, free_name, sol)...)
 end
 
-# Convenience wrappers for DistSpec — delegate to dist_from_mean_var or dist_from_var
-
-dist_from_std(p::DistSpec, σ̄::Number) = dist_from_var(p, σ̄^2)
-dist_from_mean_std(p::DistSpec, μ̄::Number, σ̄::Number) = dist_from_mean_var(p, μ̄, σ̄^2)
-dist_from_mean_cv(p::DistSpec, μ̄::Number, cv::Number) = dist_from_mean_var(p, μ̄, (cv * μ̄)^2)
-dist_from_mean_scv(p::DistSpec, μ̄::Number, scv::Number) = dist_from_mean_var(p, μ̄, scv * μ̄^2)
-dist_from_mean_second_moment(p::DistSpec, μ̄::Number, m2::Number) = dist_from_mean_var(p, μ̄, m2 - μ̄^2)
 
 # --- Internal helpers ---
 

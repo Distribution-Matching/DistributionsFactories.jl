@@ -16,7 +16,7 @@ end
 function test_median_exponential()
     for θ in [0.5, 1.0, 5.0]
         true_d = Exponential(θ)
-        d = dist_from_median(Exponential, median(true_d))
+        d = make_dist(Exponential, median=median(true_d))
         if !isapprox(params(d)[1], θ, rtol=1e-8)
             @info "Mismatch:", θ, params(d)
             return false
@@ -28,8 +28,8 @@ end
 function test_q1_q3_exponential()
     for θ in [1.0, 3.0, 7.0]
         true_d = Exponential(θ)
-        d1 = dist_from_q1(Exponential, quantile(true_d, 0.25))
-        d3 = dist_from_q3(Exponential, quantile(true_d, 0.75))
+        d1 = make_dist(Exponential, q1=quantile(true_d, 0.25))
+        d3 = make_dist(Exponential, q3=quantile(true_d, 0.75))
         if !isapprox(params(d1)[1], θ, rtol=1e-8) || !isapprox(params(d3)[1], θ, rtol=1e-8)
             @info "Mismatch:", θ, params(d1), params(d3)
             return false
@@ -126,7 +126,7 @@ function test_median_iqr_normal()
         true_d = Normal(μ, σ)
         med = median(true_d)
         iqr = quantile(true_d, 0.75) - quantile(true_d, 0.25)
-        d = dist_from_median_iqr(Normal, med, iqr)
+        d = make_dist(Normal, median=med, iqr=iqr)
         if !all(isapprox.(params(d), (μ, σ), rtol=1e-8))
             @info "Mismatch:", μ, σ, params(d)
             return false
@@ -139,7 +139,7 @@ function test_mean_median_gamma()
     for α in [2.0, 4.0, 10.0]
         for θ in [1.0, 2.5]
             true_d = Gamma(α, θ)
-            d = dist_from_mean_median(Gamma, mean(true_d), median(true_d))
+            d = make_dist(Gamma, mean=mean(true_d), median=median(true_d))
             if !all(isapprox.(params(d), (α, θ), rtol=1e-6))
                 @info "Mismatch:", α, θ, params(d)
                 return false
