@@ -151,7 +151,8 @@ typeof(@dist Gamma(3.0, _))
 
 ### Lower-level functions
 
-The `make_dist` API is built on these functions, which can also be used directly:
+The `make_dist` API is built on these internal functions. They are not exported but
+can be accessed via `DistributionsFactories.dist_from_mean_var(...)` etc.:
 
 | Function | Specification |
 |----------|--------------|
