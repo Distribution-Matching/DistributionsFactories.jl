@@ -123,7 +123,7 @@ Discover which distribution types are feasible for a given support and/or moment
 
 ```julia
 available_distributions(0..Inf)                    # all positive distributions
-available_distributions(0..Inf, mean=5.0, var=3.0) # filtered by moments
+available_distributions(0..Inf, mean=5.0, var=3.0) # that can fit these moments
 available_distributions(mean=5.0, cv=1.0)          # across all supports
 ```
 
