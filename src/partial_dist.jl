@@ -1,5 +1,5 @@
 """
-    PartialDist{D}
+    DistSpec{D}
 
 A partial distribution specification where some parameters are fixed and others
 are `missing` (to be solved from moment constraints).
@@ -9,18 +9,18 @@ are `missing` (to be solved from moment constraints).
 
 # Examples
 ```julia
-PartialDist{Gamma}((α=3.0, θ=missing))   # fix α, fit θ
-PartialDist{Logistic}((μ=2.0, θ=missing)) # fix μ, fit θ
+DistSpec{Gamma}((α=3.0, θ=missing))   # fix α, fit θ
+DistSpec{Logistic}((μ=2.0, θ=missing)) # fix μ, fit θ
 ```
 """
-struct PartialDist{D<:Distribution, NT<:NamedTuple}
+struct DistSpec{D<:Distribution, NT<:NamedTuple}
     params::NT
 end
 
-PartialDist{D}(nt::NT) where {D<:Distribution, NT<:NamedTuple} = PartialDist{D, NT}(nt)
+DistSpec{D}(nt::NT) where {D<:Distribution, NT<:NamedTuple} = DistSpec{D, NT}(nt)
 
 """
-    fixed_params(p::PartialDist)
+    fixed_params(p::DistSpec)
 
 Return a `NamedTuple` of the parameters that are fixed (not `missing`).
 
@@ -28,14 +28,14 @@ Return a `NamedTuple` of the parameters that are fixed (not `missing`).
 fixed_params(@dist Gamma(3.0, _))   # (α = 3.0,)
 ```
 """
-function fixed_params(p::PartialDist)
+function fixed_params(p::DistSpec)
     keys_fixed = [k for k in keys(p.params) if !ismissing(p.params[k])]
     vals_fixed = [p.params[k] for k in keys_fixed]
     return NamedTuple{Tuple(keys_fixed)}(Tuple(vals_fixed))
 end
 
 """
-    free_params(p::PartialDist)
+    free_params(p::DistSpec)
 
 Return a `Tuple` of the parameter names that are `missing` (to be solved).
 
@@ -43,7 +43,7 @@ Return a `Tuple` of the parameter names that are `missing` (to be solved).
 free_params(@dist Gamma(3.0, _))   # (:θ,)
 ```
 """
-function free_params(p::PartialDist)
+function free_params(p::DistSpec)
     return Tuple(k for k in keys(p.params) if ismissing(p.params[k]))
 end
 
@@ -52,15 +52,15 @@ function _param_names(::Type{D}) where {D<:Distribution}
 end
 
 """
-    dist_from_mean(p::PartialDist, μ̄)
+    dist_from_mean(p::DistSpec, μ̄)
 
-Construct a distribution from a `PartialDist` with one `missing` parameter,
+Construct a distribution from a `DistSpec` with one `missing` parameter,
 solving it from the mean `μ̄`.
 """
-function dist_from_mean(p::PartialDist{D}, μ̄::Number) where {D}
+function dist_from_mean(p::DistSpec{D}, μ̄::Number) where {D}
     fixed, free = _split_params(p)
     length(free) == 1 || throw(ArgumentError(
-        "dist_from_mean with PartialDist requires exactly 1 missing parameter, got $(length(free)): $free"))
+        "dist_from_mean with DistSpec requires exactly 1 missing parameter, got $(length(free)): $free"))
 
     free_name = first(free)
 
@@ -78,13 +78,13 @@ function dist_from_mean(p::PartialDist{D}, μ̄::Number) where {D}
 end
 
 """
-    dist_from_mean_var(p::PartialDist, μ̄, σ̄²)
+    dist_from_mean_var(p::DistSpec, μ̄, σ̄²)
 
-Construct a distribution from a `PartialDist`. If all parameters are `missing`,
+Construct a distribution from a `DistSpec`. If all parameters are `missing`,
 delegates to the standard type-based method. If some are fixed, solves the
 remaining from moment constraints.
 """
-function dist_from_mean_var(p::PartialDist{D}, μ̄::Number, σ̄²::Number) where {D}
+function dist_from_mean_var(p::DistSpec{D}, μ̄::Number, σ̄²::Number) where {D}
     fixed, free = _split_params(p)
 
     if length(free) == 0
@@ -181,15 +181,15 @@ function dist_from_mean_var(p::PartialDist{D}, μ̄::Number, σ̄²::Number) whe
 end
 
 """
-    dist_from_var(p::PartialDist, σ̄²)
+    dist_from_var(p::DistSpec, σ̄²)
 
-Construct a distribution from a `PartialDist` with one `missing` parameter,
+Construct a distribution from a `DistSpec` with one `missing` parameter,
 solving it from the variance `σ̄²`.
 """
-function dist_from_var(p::PartialDist{D}, σ̄²::Number) where {D}
+function dist_from_var(p::DistSpec{D}, σ̄²::Number) where {D}
     fixed, free = _split_params(p)
     length(free) == 1 || throw(ArgumentError(
-        "dist_from_var with PartialDist requires exactly 1 missing parameter, got $(length(free)): $free"))
+        "dist_from_var with DistSpec requires exactly 1 missing parameter, got $(length(free)): $free"))
 
     free_name = first(free)
     sol = find_zero(
@@ -204,29 +204,29 @@ function dist_from_var(p::PartialDist{D}, σ̄²::Number) where {D}
     return D(full_params...)
 end
 
-# Convenience wrappers for PartialDist — delegate to dist_from_mean_var or dist_from_var
+# Convenience wrappers for DistSpec — delegate to dist_from_mean_var or dist_from_var
 
-dist_from_std(p::PartialDist, σ̄::Number) = dist_from_var(p, σ̄^2)
-dist_from_mean_std(p::PartialDist, μ̄::Number, σ̄::Number) = dist_from_mean_var(p, μ̄, σ̄^2)
-dist_from_mean_cv(p::PartialDist, μ̄::Number, cv::Number) = dist_from_mean_var(p, μ̄, (cv * μ̄)^2)
-dist_from_mean_scv(p::PartialDist, μ̄::Number, scv::Number) = dist_from_mean_var(p, μ̄, scv * μ̄^2)
-dist_from_mean_second_moment(p::PartialDist, μ̄::Number, m2::Number) = dist_from_mean_var(p, μ̄, m2 - μ̄^2)
+dist_from_std(p::DistSpec, σ̄::Number) = dist_from_var(p, σ̄^2)
+dist_from_mean_std(p::DistSpec, μ̄::Number, σ̄::Number) = dist_from_mean_var(p, μ̄, σ̄^2)
+dist_from_mean_cv(p::DistSpec, μ̄::Number, cv::Number) = dist_from_mean_var(p, μ̄, (cv * μ̄)^2)
+dist_from_mean_scv(p::DistSpec, μ̄::Number, scv::Number) = dist_from_mean_var(p, μ̄, scv * μ̄^2)
+dist_from_mean_second_moment(p::DistSpec, μ̄::Number, m2::Number) = dist_from_mean_var(p, μ̄, m2 - μ̄^2)
 
 # --- Internal helpers ---
 
-function _split_params(p::PartialDist{D}) where {D}
+function _split_params(p::DistSpec{D}) where {D}
     names = _param_names(D)
     fixed = [(n => p.params[n]) for n in keys(p.params) if !ismissing(p.params[n])]
     free = [n for n in keys(p.params) if ismissing(p.params[n])]
     return fixed, free
 end
 
-function _fill_params(p::PartialDist{D}, free_name::Symbol, value) where {D}
+function _fill_params(p::DistSpec{D}, free_name::Symbol, value) where {D}
     names = keys(p.params)
     return Tuple(n == free_name ? value : p.params[n] for n in names)
 end
 
-function _fill_params(p::PartialDist{D}, free_names::Vector{Symbol}, values) where {D}
+function _fill_params(p::DistSpec{D}, free_names::Vector{Symbol}, values) where {D}
     names = keys(p.params)
     free_map = Dict(zip(free_names, values))
     return Tuple(haskey(free_map, n) ? free_map[n] : p.params[n] for n in names)
@@ -243,11 +243,11 @@ end
     @dist expr
 
 Create a distribution specification. Returns either a `Type`, a distribution instance,
-or a `PartialDist` depending on the form:
+or a `DistSpec` depending on the form:
 
 - `@dist Gamma` → `Gamma` (the type itself)
 - `@dist TDist(7)` → `TDist(7)` (a full instance)
-- `@dist Gamma(3.0, _)` → `PartialDist{Gamma}((α=3.0, θ=missing))` (partial spec)
+- `@dist Gamma(3.0, _)` → `DistSpec{Gamma}((α=3.0, θ=missing))` (partial spec)
 
 The result can be passed to any `dist_from_*` function:
 
@@ -271,10 +271,10 @@ macro dist(expr)
         has_placeholder = any(a -> a == :_ || a == :(_), args)
 
         if has_placeholder
-            # Partial: @dist Gamma(3.0, _) → PartialDist{Gamma}(...)
+            # Partial: @dist Gamma(3.0, _) → DistSpec{Gamma}(...)
             param_exprs = [a == :_ || a == :(_) ? :missing : a for a in args]
             params_tuple = Expr(:tuple, param_exprs...)
-            return esc(:(PartialDist{$D}(NamedTuple{fieldnames($D)}($params_tuple))))
+            return esc(:(DistSpec{$D}(NamedTuple{fieldnames($D)}($params_tuple))))
         else
             # Full instance: @dist TDist(7) → TDist(7)
             return esc(expr)

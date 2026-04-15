@@ -96,7 +96,7 @@ end
 """
     make_dist(D; mean, var, std, cv, scv, second_moment, median, q1, q3, iqr, quantiles, support)
 
-Construct a distribution of type `D` (or `PartialDist` via `@dist`) from the given
+Construct a distribution of type `D` (or `DistSpec` via `@dist`) from the given
 moment or quantile specification. All parameters are keyword arguments.
 
 # Moment specifications
@@ -105,8 +105,8 @@ moment or quantile specification. All parameters are keyword arguments.
 - `mean` and `cv` — mean and coefficient of variation
 - `mean` and `scv` — mean and squared coefficient of variation
 - `mean` and `second_moment` — mean and E[X²]
-- `mean` alone — for 1-parameter distributions or `PartialDist`
-- `var` alone — for 1-parameter distributions or `PartialDist`
+- `mean` alone — for 1-parameter distributions or `DistSpec`
+- `var` alone — for 1-parameter distributions or `DistSpec`
 
 # Quantile specifications
 - `median` — single quantile (1-parameter distributions)
@@ -153,11 +153,11 @@ _make_dist(D, s::QuantileSpec) = dist_from_quantile(D, s.p, s.q)
 _make_dist(D, s::TwoQuantileSpec) = dist_from_quantiles(D, s.p1, s.q1, s.p2, s.q2)
 _make_dist(D, s::MeanQuantileSpec) = dist_from_mean_quantile(D, s.μ̄, s.p, s.q)
 
-# --- Dispatch on spec type: PartialDist ---
+# --- Dispatch on spec type: DistSpec ---
 
-_make_dist(p::PartialDist, s::MeanVarSpec) = dist_from_mean_var(p, s.μ̄, s.σ̄²)
-_make_dist(p::PartialDist, s::MeanSpec) = dist_from_mean(p, s.μ̄)
-_make_dist(p::PartialDist, s::VarSpec) = dist_from_var(p, s.σ̄²)
+_make_dist(p::DistSpec, s::MeanVarSpec) = dist_from_mean_var(p, s.μ̄, s.σ̄²)
+_make_dist(p::DistSpec, s::MeanSpec) = dist_from_mean(p, s.μ̄)
+_make_dist(p::DistSpec, s::VarSpec) = dist_from_var(p, s.σ̄²)
 
 # --- With support ---
 
@@ -168,25 +168,59 @@ end
 # --- dist_exists ---
 
 """
-    dist_exists(D; mean, var, std, cv, scv, second_moment)
+    dist_exists(D; mean, var, std, cv, scv, second_moment, support)
 
 Check whether a distribution of type `D` can be constructed with the given
-moment specification. Returns `true` or throws `DomainError`.
+moment specification, optionally on a given `support`. Returns `true` or
+throws `DomainError`.
 
 # Examples
 ```julia
-dist_exists(Beta, mean=0.5, var=0.1)    # true
-dist_exists(Exponential, mean=2.5, var=1.5)  # throws DomainError
+dist_exists(Beta, mean=0.5, var=0.1)                    # true
+dist_exists(Exponential, mean=2.5, var=1.5)              # throws DomainError
+dist_exists(Beta, mean=3.5, var=0.5, support=2..7)       # true
+dist_exists(Pareto, mean=3.0, support=5..Inf)             # throws (μ_std < 0)
 ```
 """
-function dist_exists(D; kwargs...)
+function dist_exists(D; support=nothing, kwargs...)
     spec = _moment_spec(; kwargs...)
-    return _dist_exists(D, spec)
+    if support === nothing
+        return _dist_exists(D, spec)
+    else
+        return _dist_exists_on_support(D, spec, support)
+    end
 end
 
 _dist_exists(D, s::MeanVarSpec) = exists_dist_from_mean_var(D, s.μ̄, s.σ̄²)
-_dist_exists(D, s::MeanSpec) = true  # 1-param distributions always exist if mean is valid
+_dist_exists(D, s::MeanSpec) = true
 _dist_exists(D, s::VarSpec) = true
+
+function _dist_exists_on_support(D, s::MeanVarSpec, support)
+    lo, hi = _support_endpoints(support)
+    μ_std, σ²_std = _moments_to_standard(D, s.μ̄, s.σ̄², lo, hi)
+    return exists_dist_from_mean_var(D, μ_std, σ²_std)
+end
+
+function _dist_exists_on_support(D, s::MeanSpec, support)
+    lo, hi = _support_endpoints(support)
+    μ_std, _ = _moments_to_standard(D, s.μ̄, 1.0, lo, hi)
+    if μ_std ≤ 0 && _natural_support(D) === :positive
+        throw(DomainError("$D on ($lo, $hi): transformed mean μ_std=$μ_std must be > 0"))
+    end
+    return true
+end
+
+function _support_endpoints(support)
+    if support isa AbstractInterval
+        return endpoints(support)
+    elseif support isa Distributions.RealInterval
+        return (support.lb, support.ub)
+    elseif support isa AbstractUnitRange
+        return (Float64(first(support)), Float64(last(support)))
+    else
+        throw(ArgumentError("Unsupported support type: $(typeof(support))"))
+    end
+end
 
 
 

@@ -16,8 +16,8 @@ _natural_support(::Type{<:Union{Beta,Uniform}}) = :unit
 _natural_support(::Type{<:Union{Binomial,DiscreteUniform}}) = :integer_bounded
 _natural_support(::Type{<:Union{Poisson,NegativeBinomial,Geometric}}) = :integer_nonneg
 
-# PartialDist delegates to the underlying distribution type
-_natural_support(::PartialDist{D}) where {D} = _natural_support(D)
+# DistSpec delegates to the underlying distribution type
+_natural_support(::DistSpec{D}) where {D} = _natural_support(D)
 
 function _requested_support_shape(lo, hi)
     if lo == -Inf && hi == Inf
@@ -133,8 +133,8 @@ end
 # --- Affine transforms ---
 
 function _build_on_standard(D, μ_std, σ²_std)
-    # For PartialDist with 1 free param, use mean only (overdetermined with mean+var)
-    if D isa PartialDist && length(free_params(D)) == 1
+    # For DistSpec with 1 free param, use mean only (overdetermined with mean+var)
+    if D isa DistSpec && length(free_params(D)) == 1
         return dist_from_mean(D, μ_std)
     else
         return dist_from_mean_var(D, μ_std, σ²_std)
@@ -157,6 +157,34 @@ function _affine_scale(D, μ̄, σ̄², a, b)
     σ²_std = σ̄² / w^2
     d = _build_on_standard(D, μ_std, σ²_std)
     return Float64(a) + Float64(w) * d
+end
+
+# --- Moment transform to standard support (for feasibility checking) ---
+
+function _moments_to_standard(D, μ̄, σ̄², lo, hi)
+    natural = _natural_support(D)
+    requested = _requested_support_shape(lo, hi)
+
+    if natural === :real
+        requested === :real && return (μ̄, σ̄²)
+        # Truncation feasibility: just check μ̄ is in bounds
+        return (μ̄, σ̄²)
+    elseif natural === :positive
+        if requested === :half_right
+            return (μ̄ - lo, σ̄²)
+        elseif requested === :half_left
+            return (hi - μ̄, σ̄²)
+        elseif requested === :bounded && lo >= 0
+            return (μ̄, σ̄²)
+        end
+    elseif natural === :unit
+        if requested === :bounded
+            w = hi - lo
+            return ((μ̄ - lo) / w, σ̄² / w^2)
+        end
+    end
+
+    throw(ArgumentError("Cannot check feasibility for $D on ($lo, $hi)"))
 end
 
 # --- Truncation ---

@@ -12,10 +12,10 @@ end
 
 function test_dist_macro_partial()
     p = @dist Gamma(3.0, _)
-    return p isa PartialDist{Gamma} && p.params.α == 3.0 && ismissing(p.params.θ)
+    return p isa DistSpec{Gamma} && p.params.α == 3.0 && ismissing(p.params.θ)
 end
 
-# --- PartialDist with dist_from_mean ---
+# --- DistSpec with dist_from_mean ---
 
 function test_partial_dist_from_mean()
     d = dist_from_mean(@dist(Gamma(3.0, _)), 5.0)
@@ -31,7 +31,7 @@ function test_partial_normal_fix_sigma()
     return true
 end
 
-# --- PartialDist with dist_from_mean_var ---
+# --- DistSpec with dist_from_mean_var ---
 
 function test_partial_dist_from_mean_var()
     d = dist_from_mean_var(@dist(Normal(0.0, _)), 0.0, 4.0)
@@ -64,7 +64,7 @@ function test_instance_tdist()
     return true
 end
 
-# --- dist_from_var and convenience wrappers with PartialDist ---
+# --- dist_from_var and convenience wrappers with DistSpec ---
 
 function test_partial_dist_from_var()
     # Logistic(μ=2, _): fix location, solve scale from variance

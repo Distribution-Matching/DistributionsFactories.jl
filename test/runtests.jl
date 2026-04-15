@@ -100,7 +100,7 @@ end
     @test test_support_errors()
 end
 
-@testset "@dist macro and PartialDist" begin
+@testset "@dist macro and DistSpec" begin
     @test test_dist_macro_bare_type()
     @test test_dist_macro_full_instance()
     @test test_dist_macro_partial()

@@ -90,7 +90,7 @@ available_distributions(mean=5.0, cv=1.0)
 ### `make_dist(D; kwargs...)`
 
 The primary interface. Constructs a distribution from any combination of moment
-and quantile keywords. `D` can be a type, instance, or `PartialDist` (via `@dist`).
+and quantile keywords. `D` can be a type, instance, or `DistSpec` (via `@dist`).
 
 | Keyword | Meaning |
 |---------|---------|
@@ -127,12 +127,11 @@ available_distributions(0..Inf, mean=5.0, var=3.0) # that can fit these moments
 available_distributions(mean=5.0, cv=1.0)          # across all supports
 ```
 
-### The `@dist` macro and `PartialDist`
+### The `@dist` macro and `DistSpec`
 
 The `@dist` macro creates distribution specifications. Use `_` as a placeholder for
-parameters that should be solved from moment constraints. The macro's only job is
-to parse the expression — all solving is done by `make_dist` (or any `dist_from_*`
-function).
+free parameters (to be determined). The macro's only job is to parse the expression
+— all solving is done by `make_dist` or the lower-level `dist_from_*` functions.
 
 **Three forms:**
 
@@ -141,21 +140,21 @@ function).
 @dist Gamma           # → Gamma
 
 # 2. Partial — underscore marks parameters to solve
-@dist Gamma(3.0, _)   # → PartialDist{Gamma}  (α=3.0 fixed, θ=missing)
-@dist Normal(_, 1.0)  # → PartialDist{Normal} (μ=missing, σ=1.0 fixed)
+@dist Gamma(3.0, _)   # → DistSpec{Gamma}  (α=3.0 fixed, θ=missing)
+@dist Normal(_, 1.0)  # → DistSpec{Normal} (μ=missing, σ=1.0 fixed)
 
 # 3. Full instance — returns the distribution as-is
 @dist TDist(7)        # → TDist(7)
 @dist Normal(3.0, 2.0) # → Normal(3.0, 2.0)
 ```
 
-**Inspect a `PartialDist`:**
+**Inspect a `DistSpec`:**
 
 ```julia
 spec = @dist Gamma(3.0, _)
 fixed_params(spec)   # (α = 3.0,)
 free_params(spec)    # (:θ,)
-typeof(spec)         # PartialDist{Gamma, @NamedTuple{α::Float64, θ::Missing}}
+typeof(spec)         # DistSpec{Gamma, @NamedTuple{α::Float64, θ::Missing}}
 ```
 
 **Pass to `make_dist` to solve the free parameter(s):**
@@ -163,16 +162,24 @@ typeof(spec)         # PartialDist{Gamma, @NamedTuple{α::Float64, θ::Missing}}
 ```julia
 spec = @dist Gamma(3.0, _)
 d = make_dist(spec, mean=5.0)          # solve θ from mean
+mean(d), var(d)                         # (5.0, 8.33)
+params(d)                               # (3.0, 1.667)
+
 d = make_dist(spec, var=3.0)           # solve θ from variance
+mean(d), var(d)                         # (3.0, 3.0)
 
 spec = @dist Logistic(2.0, _)
 d = make_dist(spec, std=4.0)           # fix location, solve scale from std
+mean(d), std(d)                         # (2.0, 4.0)
 
 spec = @dist Normal(_, 1.0)
 d = make_dist(spec, mean=3.0)          # fix σ, solve μ from mean
+mean(d), std(d)                         # (3.0, 1.0)
 
 spec = @dist Beta(2.0, _)
 d = make_dist(spec, mean=0.4)          # fix α, solve β from mean
+mean(d), var(d)                         # (0.4, 0.04)
+params(d)                               # (2.0, 3.0)
 ```
 
 **Full instances wrap in LocationScale when moments are given:**
@@ -222,7 +229,7 @@ can be accessed via `DistributionsFactories.dist_from_mean_var(...)` etc.:
 | `dist_from_mean_var_on_support(D, μ̄, σ̄²; support)` | Mean+var on arbitrary support |
 | `exists_dist_from_mean_var(D, μ̄, σ̄²)` | Feasibility check |
 
-All of these also accept `PartialDist` as the first argument.
+All of these also accept `DistSpec` as the first argument.
 
 ### Instance dispatch
 
@@ -301,7 +308,7 @@ The following have initial code but are not fully validated:
 | Direct formula | Normal, Beta, Gamma, Logistic, Laplace, Gumbel, LogNormal, Pareto, InverseGamma, FDist, Chi, Rayleigh, Chisq, Exponential, Erlang, SymTriangularDist, Uniform, Binomial, DiscreteUniform, Poisson, NegativeBinomial, Geometric |
 | Numerical root-finding | Weibull, Frechet (beta-ratio equation) |
 | 2D Newton iteration | Folded Normal, Truncated distributions (experimental) |
-| Numerical root-finding | `PartialDist` — solving free parameters from moments |
+| Numerical root-finding | `DistSpec` — solving free parameters from moments |
 | Location-scale formula | Quantile matching for Normal, Laplace, Logistic, Cauchy, Gumbel |
 | Numerical root-finding | Quantile matching for Gamma, Beta |
 | Moment transform + `LocationScale` | Arbitrary support (affine) |
