@@ -33,32 +33,32 @@ Delegates to `dist_from_mean_var(D, μ̄, m2 - μ̄²)`.
 dist_from_mean_second_moment(D, μ̄::Number, m2::Number) = dist_from_mean_var(D, μ̄, m2 - μ̄^2)
 
 """
-    exists_unique_dist_from_mean_std(D, μ̄, σ̄)
+    exists_dist_from_mean_std(D, μ̄, σ̄)
 
-Check feasibility for `dist_from_mean_std`. See [`exists_unique_dist_from_mean_var`](@ref).
+Check feasibility for `dist_from_mean_std`. See [`exists_dist_from_mean_var`](@ref).
 """
-exists_unique_dist_from_mean_std(D, μ̄::Number, σ̄::Number) = exists_unique_dist_from_mean_var(D, μ̄, σ̄^2)
-
-"""
-    exists_unique_dist_from_mean_cv(D, μ̄, cv)
-
-Check feasibility for `dist_from_mean_cv`. See [`exists_unique_dist_from_mean_var`](@ref).
-"""
-exists_unique_dist_from_mean_cv(D, μ̄::Number, cv::Number) = exists_unique_dist_from_mean_var(D, μ̄, (cv * μ̄)^2)
+exists_dist_from_mean_std(D, μ̄::Number, σ̄::Number) = exists_dist_from_mean_var(D, μ̄, σ̄^2)
 
 """
-    exists_unique_dist_from_mean_scv(D, μ̄, scv)
+    exists_dist_from_mean_cv(D, μ̄, cv)
 
-Check feasibility for `dist_from_mean_scv`. See [`exists_unique_dist_from_mean_var`](@ref).
+Check feasibility for `dist_from_mean_cv`. See [`exists_dist_from_mean_var`](@ref).
 """
-exists_unique_dist_from_mean_scv(D, μ̄::Number, scv::Number) = exists_unique_dist_from_mean_var(D, μ̄, scv * μ̄^2)
+exists_dist_from_mean_cv(D, μ̄::Number, cv::Number) = exists_dist_from_mean_var(D, μ̄, (cv * μ̄)^2)
 
 """
-    exists_unique_dist_from_mean_second_moment(D, μ̄, m2)
+    exists_dist_from_mean_scv(D, μ̄, scv)
 
-Check feasibility for `dist_from_mean_second_moment`. See [`exists_unique_dist_from_mean_var`](@ref).
+Check feasibility for `dist_from_mean_scv`. See [`exists_dist_from_mean_var`](@ref).
 """
-exists_unique_dist_from_mean_second_moment(D, μ̄::Number, m2::Number) = exists_unique_dist_from_mean_var(D, μ̄, m2 - μ̄^2)
+exists_dist_from_mean_scv(D, μ̄::Number, scv::Number) = exists_dist_from_mean_var(D, μ̄, scv * μ̄^2)
+
+"""
+    exists_dist_from_mean_second_moment(D, μ̄, m2)
+
+Check feasibility for `dist_from_mean_second_moment`. See [`exists_dist_from_mean_var`](@ref).
+"""
+exists_dist_from_mean_second_moment(D, μ̄::Number, m2::Number) = exists_dist_from_mean_var(D, μ̄, m2 - μ̄^2)
 
 # Variants that only take a dispersion measure (for 1-parameter distributions where mean is determined)
 

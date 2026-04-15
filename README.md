@@ -33,7 +33,7 @@ dist_from_mean_var(Exponential, 2.5, 1.5)
 Check feasibility before constructing:
 
 ```julia
-exists_unique_dist_from_mean_var(Beta, 0.5, 0.1)
+exists_dist_from_mean_var(Beta, 0.5, 0.1)
 # true
 ```
 

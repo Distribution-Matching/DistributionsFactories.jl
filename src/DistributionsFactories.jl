@@ -30,7 +30,7 @@ struct DiscreteSymmetricTriangular <: AbstractDistributionsFactoriesDiscreteType
 struct TruncatedPoisson <: AbstractDistributionsFactoriesDiscreteType end
 
 include("numerical_aux_solvers.jl")
-include("exists_unique_dist_from_mean_var.jl")
+include("exists_dist_from_mean_var.jl")
 include("dist_from_mean_var.jl")
 include("dist_from_variants.jl")
 include("dist_from_mean.jl")
@@ -53,11 +53,11 @@ export dist_from_mean_var,
         dist_from_q1_q3,
         dist_from_mean_quantile,
         dist_from_mean_median,
-        exists_unique_dist_from_mean_var,
-        exists_unique_dist_from_mean_std,
-        exists_unique_dist_from_mean_cv,
-        exists_unique_dist_from_mean_scv,
-        exists_unique_dist_from_mean_second_moment,
+        exists_dist_from_mean_var,
+        exists_dist_from_mean_std,
+        exists_dist_from_mean_cv,
+        exists_dist_from_mean_scv,
+        exists_dist_from_mean_second_moment,
         FoldedNormal,
         DiscreteTriangular,
         DiscreteSymmetricTriangular,

@@ -73,12 +73,12 @@ end
 
 function test_exists_variants()
     # Valid cases
-    exists_unique_dist_from_mean_std(Gamma, 2.0, 1.0) || return false
-    exists_unique_dist_from_mean_cv(Gamma, 2.0, 0.5) || return false
-    exists_unique_dist_from_mean_scv(Gamma, 2.0, 0.25) || return false
+    exists_dist_from_mean_std(Gamma, 2.0, 1.0) || return false
+    exists_dist_from_mean_cv(Gamma, 2.0, 0.5) || return false
+    exists_dist_from_mean_scv(Gamma, 2.0, 0.25) || return false
 
     # Invalid: negative mean for Gamma propagates through
-    for f in [exists_unique_dist_from_mean_std, exists_unique_dist_from_mean_cv, exists_unique_dist_from_mean_scv]
+    for f in [exists_dist_from_mean_std, exists_dist_from_mean_cv, exists_dist_from_mean_scv]
         try
             f(Gamma, -1.0, 1.0)
             return false
