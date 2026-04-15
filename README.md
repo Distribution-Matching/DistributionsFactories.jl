@@ -17,26 +17,94 @@ using Distributions
 
 # Construct a Gamma from mean and variance
 d = dist_from_mean_var(Gamma, 2.5, 1.5)
-mean(d), var(d)
-# (2.5, 1.5)
+mean(d), var(d)   # (2.5, 1.5)
 
-# What distributions are feasible for these moments?
+# Or use the @dist macro for partial specification
+d = dist_from_mean(@dist(Gamma(3.0, _)), 5.0)   # fix α=3, solve θ from mean
+
+# What distributions are feasible for these moments on [0,∞)?
 available_distributions(0..Inf, mean=2.5, var=1.5)
 # [Gamma, Erlang, LogNormal, Weibull, Frechet, ...]
-```
 
-When no valid distribution exists for the given moments, an exception is thrown:
+# Check feasibility before constructing
+exists_dist_from_mean_var(Beta, 0.5, 0.1)   # true
 
-```julia
+# When no valid distribution exists, an exception is thrown
 dist_from_mean_var(Exponential, 2.5, 1.5)
 # ERROR: DomainError: "Exponential: the condition σ̄² = μ̄² is not satisfied"
 ```
 
-Check feasibility before constructing:
+## Extended examples
 
 ```julia
-exists_dist_from_mean_var(Beta, 0.5, 0.1)
-# true
+using DistributionsFactories, Distributions
+
+# --- Moment-based construction ---
+
+# Gamma from mean and coefficient of variation
+d = dist_from_mean_cv(Gamma, 10.0, 0.5)
+mean(d), std(d) / mean(d)   # (10.0, 0.5)
+
+# Beta on [2, 7] with target mean and variance
+d = dist_from_mean_var_on_support(Beta, 3.5, 0.5, support=2..7)
+mean(d), var(d), minimum(d), maximum(d)   # (3.5, 0.5, 2.0, 7.0)
+
+# Gamma shifted to [3, ∞)
+d = dist_from_mean_var_on_support(Gamma, 8.0, 3.0, support=3..Inf)
+mean(d), minimum(d)   # (8.0, 3.0)
+
+# --- Partial specification with @dist ---
+
+# Fix shape α=3, solve scale θ from mean
+d = dist_from_mean(@dist(Gamma(3.0, _)), 5.0)
+params(d)   # (3.0, 1.667)
+
+# Fix location μ=0, solve scale σ from variance
+d = dist_from_mean_var(@dist(Normal(0.0, _)), 0.0, 4.0)
+params(d)   # (0.0, 2.0)
+
+# TDist with fixed degrees of freedom, arbitrary mean and variance
+d = dist_from_mean_var(@dist(TDist(7)), 5.0, 2.0)
+mean(d), var(d)   # (5.0, 2.0)
+
+# --- Quantile-based construction ---
+
+# Normal from first and third quartiles
+d = dist_from_q1_q3(Normal, 10.0, 30.0)
+quantile(d, 0.25), quantile(d, 0.75)   # (10.0, 30.0)
+
+# Beta with mean 0.4 and median 0.35
+d = dist_from_mean_median(Beta, 0.4, 0.35)
+mean(d), median(d)   # (0.4, 0.35)
+
+# --- Discovery ---
+
+# What distributions can represent a positive r.v. with mean=5, var=25?
+available_distributions(0..Inf, mean=5.0, var=25.0)
+# [Gamma, Erlang, Exponential, LogNormal, Weibull, ...]
+
+# Search across all supports
+available_distributions(mean=5.0, cv=1.0)
+```
+
+## The `@dist` macro
+
+The `@dist` macro provides concise syntax for creating distribution specifications.
+Use `_` as a placeholder for parameters to be solved. The result is passed to any
+`dist_from_*` function:
+
+```julia
+# @dist with a bare type — returns the type itself
+dist_from_mean_var(@dist(Gamma), 5.0, 3.0)
+
+# @dist with _ placeholders — creates a PartialDist
+dist_from_mean(@dist(Gamma(3.0, _)), 5.0)          # fix α=3, solve θ from mean
+dist_from_mean(@dist(Normal(_, 1.0)), 3.0)          # fix σ=1, solve μ from mean
+dist_from_mean(@dist(Beta(2.0, _)), 0.4)            # fix α=2, solve β from mean
+dist_from_mean_var(@dist(Normal(0.0, _)), 0.0, 4.0) # fix μ=0, solve σ from var
+
+# @dist with all params — returns a full instance
+dist_from_mean_var(@dist(TDist(7)), 5.0, 2.0)       # LocationScale wrap
 ```
 
 ## Distributions covered
@@ -127,14 +195,6 @@ mean(d), var(d)   # (5.0, 2.0)
 | `dist_from_std(D, σ̄)` | Standard deviation only (1-parameter distributions) |
 | `dist_from_mean(D, μ̄)` | Mean only (1-parameter distributions) |
 
-```julia
-# Gamma from mean and coefficient of variation
-d = dist_from_mean_cv(Gamma, 5.0, 0.5)
-
-# Exponential from variance alone (mean is determined)
-d = dist_from_var(Exponential, 4.0)
-```
-
 ## Distributions on arbitrary supports
 
 By default, distributions are constructed on their natural support (e.g. Beta on [0,1], Gamma on [0,∞)). Use `dist_from_mean_var_on_support` to place a distribution on a different domain.
@@ -144,61 +204,23 @@ The function automatically determines whether to use an **affine transform** or 
 - **Affine**: when the requested support has the same shape as the natural one (e.g. Beta on [2,7], Gamma on [3,∞)). Returns a `LocationScale` wrapper.
 - **Truncation**: when the requested support restricts the natural one (e.g. Normal on [0,1], Gamma on [0,10]). Returns a `Truncated` wrapper.
 
-### Continuous examples
-
 ```julia
 # Beta scaled from [0,1] to [2,7]
 d = dist_from_mean_var_on_support(Beta, 3.5, 0.5, support=2..7)
-minimum(d), maximum(d)   # (2.0, 7.0)
 
 # Gamma shifted from [0,∞) to [3,∞)
 d = dist_from_mean_var_on_support(Gamma, 8.0, 3.0, support=3..Inf)
-minimum(d)   # 3.0
 
 # Flipped Gamma on (-∞,10]
 d = dist_from_mean_var_on_support(Gamma, 5.0, 3.0, support=-Inf..10)
-maximum(d)   # 10.0
 
-# Normal truncated to [0,1] (experimental)
-d = dist_from_mean_var_on_support(Normal, 0.5, 0.04, support=0..1)
-minimum(d), maximum(d)   # (0.0, 1.0)
-```
-
-### Discrete examples
-
-```julia
 # Binomial shifted from {0,...,5} to {10,...,15}
 d = dist_from_mean_var_on_support(Binomial, 12.0, 1.2, support=10:15)
-minimum(d), maximum(d)   # (10, 15)
 ```
 
 Supports are specified using [IntervalSets.jl](https://github.com/JuliaMath/IntervalSets.jl) syntax (`a..b`), Distributions.jl's `RealInterval` (e.g. `support(some_dist)`), or integer ranges (`a:b`) for discrete distributions.
 
 ## Quantile-based construction
-
-### Single quantile (1-parameter distributions)
-
-```julia
-# Exponential with median = 2.0
-d = dist_from_median(Exponential, 2.0)
-```
-
-### Two quantiles (2-parameter distributions)
-
-```julia
-# Normal from Q1 and Q3
-d = dist_from_q1_q3(Normal, 10.0, 30.0)
-
-# Gamma from two arbitrary quantiles
-d = dist_from_quantiles(Gamma, 0.1, 1.0, 0.9, 10.0)
-```
-
-### Hybrid: mean + quantile
-
-```julia
-# Beta with mean 0.4 and median 0.35
-d = dist_from_mean_median(Beta, 0.4, 0.35)
-```
 
 | Function | Specification |
 |----------|--------------|
@@ -217,20 +239,13 @@ d = dist_from_mean_median(Beta, 0.4, 0.35)
 Use `available_distributions` to find which distribution types are available for a given support and/or moment specification.
 
 ```julia
-# What distributions live on [0,∞)?
-available_distributions(0..Inf)
-
-# Which of those are feasible for μ̄=5, σ̄²=3?
-available_distributions(0..Inf, mean=5.0, var=3.0)
-
-# Use the support of an existing distribution
-available_distributions(support(Beta(2, 3)), mean=0.5, std=0.2)
-
-# Search across all supports
-available_distributions(mean=5.0, cv=1.0)
+available_distributions(0..Inf)                          # by support
+available_distributions(0..Inf, mean=5.0, var=3.0)       # filtered by moments
+available_distributions(support(Beta(2, 3)), mean=0.5)   # from existing distribution
+available_distributions(mean=5.0, cv=1.0)                # across all supports
 ```
 
-Moment specification via named arguments: `mean`, `var`, `std`, `cv`, `scv`, `second_moment`.
+Moment keywords: `mean`, `var`, `std`, `cv`, `scv`, `second_moment`.
 
 ## Algorithms
 
@@ -241,7 +256,7 @@ Moment specification via named arguments: `mean`, `var`, `std`, `cv`, `scv`, `se
 | Weibull, Frechet | Numerical root-finding (beta-ratio equation) |
 | Folded Normal | Numerical (2D Newton iteration) |
 | Truncated Normal, Gamma (experimental) | Numerical (2D Newton + quadrature) |
+| Partial specification (`@dist Gamma(3, _) ...`) | Numerical root-finding |
 | Quantile matching (Gamma, Beta) | Numerical root-finding |
 | Quantile matching (Normal, Laplace, Logistic, Cauchy, Gumbel) | Direct formula (location-scale) |
 | Arbitrary support (affine) | Moment transform + `LocationScale` wrapper |
-

@@ -72,19 +72,36 @@ function dist_from_mean_var(p::PartialDist{D}, μ̄::Number, σ̄²::Number) whe
         # All missing — delegate to standard type dispatch
         return dist_from_mean_var(D, μ̄, σ̄²)
     elseif length(free) == 1
-        # One free parameter — solve from mean, check variance
+        # One free parameter, two constraints (overdetermined).
+        # Try solving from variance first (scale params affect variance),
+        # then verify mean. If that fails, solve from mean and verify variance.
         free_name = first(free)
+        guess = _initial_guess(D, free_name, √σ̄²)
+
+        # Attempt 1: solve from variance
+        local d
+        try
+            sol = find_zero(
+                x -> begin
+                    fp = _fill_params(p, free_name, x)
+                    var(D(fp...)) - σ̄²
+                end, guess)
+            d = D(_fill_params(p, free_name, sol)...)
+            if isapprox(mean(d), μ̄, rtol=1e-4)
+                return d
+            end
+        catch
+        end
+
+        # Attempt 2: solve from mean
         sol = find_zero(
             x -> begin
-                full_params = _fill_params(p, free_name, x)
-                mean(D(full_params...)) - μ̄
-            end,
-            _initial_guess(D, free_name, μ̄)
-        )
-        full_params = _fill_params(p, free_name, sol)
-        d = D(full_params...)
-        if !isapprox(var(d), σ̄², rtol=1e-6)
-            throw(DomainError("$D with fixed $(Dict(fixed)): variance $(var(d)) does not match target σ̄²=$σ̄²"))
+                fp = _fill_params(p, free_name, x)
+                mean(D(fp...)) - μ̄
+            end, guess)
+        d = D(_fill_params(p, free_name, sol)...)
+        if !isapprox(var(d), σ̄², rtol=1e-4)
+            throw(DomainError("$D with fixed $(Dict(fixed)): cannot satisfy both μ̄=$μ̄ and σ̄²=$σ̄² with 1 free parameter"))
         end
         return d
     elseif length(free) == 2

@@ -8,6 +8,7 @@ include("test_quantile.jl")
 include("test_numerical_aux_solvers.jl")
 include("test_available_distributions.jl")
 include("test_dist_on_support.jl")
+include("test_dist_macro.jl")
 
 
 @testset "Mean Var tests" begin
@@ -87,6 +88,19 @@ end
     @test test_support_normal_truncated()
     @test test_support_gamma_truncated()
     @test test_support_errors()
+end
+
+@testset "@dist macro and PartialDist" begin
+    @test test_dist_macro_bare_type()
+    @test test_dist_macro_full_instance()
+    @test test_dist_macro_partial()
+    @test test_partial_dist_from_mean()
+    @test test_partial_normal_fix_sigma()
+    @test test_partial_dist_from_mean_var()
+    @test test_partial_all_missing_delegates()
+    @test test_partial_beta()
+    @test test_instance_tdist()
+    @test test_type_via_macro()
 end
 
 @testset "solve_beta_ratio" begin
