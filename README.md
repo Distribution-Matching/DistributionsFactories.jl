@@ -103,7 +103,17 @@ The following have initial code but are not fully validated:
 
 ### `dist_from_mean_var(D, μ̄, σ̄²)`
 
-The primary interface. Constructs a distribution of type `D` with mean `μ̄` and variance `σ̄²`.
+The primary interface. Constructs a distribution of type `D` with mean `μ̄` and variance `σ̄²`. The first argument `D` is usually a type (e.g. `Gamma`, `Beta`), but can also be a distribution **instance** when some parameters are fixed:
+
+```julia
+# Type: standard TDist with μ=0, determines ν from variance
+d = dist_from_mean_var(TDist, 0.0, 3.0)
+
+# Instance: TDist with fixed ν=7, arbitrary mean and variance via location-scale
+d = dist_from_mean_var(TDist(7), 5.0, 2.0)
+# Returns a LocationScale wrapping TDist(7)
+mean(d), var(d)   # (5.0, 2.0)
+```
 
 ### Convenience wrappers
 
