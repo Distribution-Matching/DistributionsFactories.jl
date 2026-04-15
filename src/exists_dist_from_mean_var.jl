@@ -200,7 +200,7 @@ function exists_dist_from_mean_var(::Type{Binomial}, μ̄::Number, σ̄²::Numbe
     end
     if μ̄≤0
         throw(DomainError("Binomial: the condition μ̄ > 0 is not satisfied"))
-    elseif !isinteger(μ̄^2/(μ̄-σ̄²))
+    elseif !isapprox(μ̄^2/(μ̄-σ̄²), round(μ̄^2/(μ̄-σ̄²)); atol=1e-8)
         throw(DomainError("Binomial: the condition μ̄²/(μ̄-σ̄²) ∈ ℕ is not satisfied"))
     end
     return true
