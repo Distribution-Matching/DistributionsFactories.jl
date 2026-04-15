@@ -7,8 +7,9 @@ const _SUPPORT_UNIT = [Beta, Uniform]
 const _SUPPORT_INTEGER_NONNEG = [Poisson, NegativeBinomial, Geometric]
 const _SUPPORT_INTEGER_BOUNDED = [Binomial, DiscreteUniform]
 
-function _classify_interval(I::AbstractInterval)
-    lo, hi = endpoints(I)
+# --- Support classification from endpoints ---
+
+function _classify_support(lo, hi)
     if lo == -Inf && hi == Inf
         return :real
     elseif lo == 0 && hi == Inf
@@ -20,7 +21,7 @@ function _classify_interval(I::AbstractInterval)
     end
 end
 
-function _distributions_for_support(support::Symbol)
+function _candidates_for_support(support::Symbol)
     support === :real     && return copy(_SUPPORT_REAL)
     support === :positive && return copy(_SUPPORT_POSITIVE)
     support === :unit     && return copy(_SUPPORT_UNIT)
@@ -29,17 +30,23 @@ function _distributions_for_support(support::Symbol)
     return []
 end
 
-function _distributions_for_interval(I::AbstractInterval)
-    support = _classify_interval(I)
-    if support === :bounded
-        # For now, only [0,1] is supported as bounded continuous.
-        # Future: AffineDistribution will handle arbitrary [a,b].
-        return []
-    end
-    return _distributions_for_support(support)
+# IntervalSets.jl intervals
+function _candidates_for(I::AbstractInterval)
+    lo, hi = endpoints(I)
+    support = _classify_support(lo, hi)
+    support === :bounded && return []
+    return _candidates_for_support(support)
 end
 
-function _distributions_for_range(r::AbstractUnitRange)
+# Distributions.jl RealInterval
+function _candidates_for(I::Distributions.RealInterval)
+    support = _classify_support(I.lb, I.ub)
+    support === :bounded && return []
+    return _candidates_for_support(support)
+end
+
+# Integer ranges (discrete)
+function _candidates_for(r::AbstractUnitRange)
     lo, hi = first(r), last(r)
     if lo == 0 && hi == typemax(eltype(r))
         return copy(_SUPPORT_INTEGER_NONNEG)
@@ -52,7 +59,7 @@ end
 
 function _resolve_mean_var(; mean=nothing, var=nothing, std=nothing,
                             cv=nothing, scv=nothing, second_moment=nothing,
-                            median=nothing, kwargs...)
+                            kwargs...)
     μ̄ = mean
     σ̄² = var
 
@@ -75,21 +82,35 @@ function _resolve_mean_var(; mean=nothing, var=nothing, std=nothing,
     return μ̄, σ̄²
 end
 
+function _filter_feasible(candidates, μ̄, σ̄²)
+    feasible = []
+    for D in candidates
+        try
+            exists_dist_from_mean_var(D, μ̄, σ̄²)
+            push!(feasible, D)
+        catch
+        end
+    end
+    return feasible
+end
+
 # --- Public API ---
 
 """
-    available_distributions(I::AbstractInterval; kwargs...)
+    available_distributions(support; kwargs...)
 
-List distribution types whose support matches the interval `I`.
-Uses the `..` operator from IntervalSets.jl to specify intervals.
+List distribution types whose support matches the given interval or range.
+Accepts IntervalSets intervals (`0..Inf`), Distributions.jl `RealInterval`
+(e.g. from `support(some_dist)`), or integer ranges (`0:10`).
 
 When keyword arguments specifying moments are provided, returns only those
-distributions that can be constructed with the given specification.
+distributions that are feasible for the given specification.
 
-# Supported intervals
-- `(-Inf..Inf)` — real-line distributions
-- `(0..Inf)` — positive distributions
-- `(0..1)` — unit-interval distributions
+# Supported interval forms
+- `0..Inf` or `support(Gamma(1,1))` — positive distributions
+- `-Inf..Inf` or `support(Normal())` — real-line distributions
+- `0..1` or `support(Beta(2,3))` — unit-interval distributions
+- `0:10` — bounded discrete distributions
 
 # Keyword arguments for moment specification
 - `mean` and `var` — mean and variance
@@ -102,33 +123,12 @@ distributions that can be constructed with the given specification.
 ```julia
 available_distributions(0..Inf)
 available_distributions(0..Inf, mean=5.0, var=3.0)
-available_distributions(0..1, mean=0.5, std=0.2)
-```
-"""
-function available_distributions(I::AbstractInterval; kwargs...)
-    candidates = _distributions_for_interval(I)
-    μ̄, σ̄² = _resolve_mean_var(; kwargs...)
-    if μ̄ !== nothing && σ̄² !== nothing
-        return _filter_feasible(candidates, μ̄, σ̄²)
-    end
-    return candidates
-end
-
-"""
-    available_distributions(r::AbstractUnitRange; kwargs...)
-
-List distribution types for discrete supports specified as integer ranges.
-
-- `0:n` — bounded discrete distributions (Binomial, DiscreteUniform)
-
-# Examples
-```julia
-available_distributions(0:10)
+available_distributions(support(Beta(2,3)), mean=0.5, std=0.2)
 available_distributions(0:10, mean=5.0, var=2.0)
 ```
 """
-function available_distributions(r::AbstractUnitRange; kwargs...)
-    candidates = _distributions_for_range(r)
+function available_distributions(support; kwargs...)
+    candidates = _candidates_for(support)
     μ̄, σ̄² = _resolve_mean_var(; kwargs...)
     if μ̄ !== nothing && σ̄² !== nothing
         return _filter_feasible(candidates, μ̄, σ̄²)
@@ -156,16 +156,4 @@ function available_distributions(; kwargs...)
     all_types = vcat(_SUPPORT_REAL, _SUPPORT_POSITIVE, _SUPPORT_UNIT,
                      _SUPPORT_INTEGER_NONNEG, _SUPPORT_INTEGER_BOUNDED)
     return _filter_feasible(all_types, μ̄, σ̄²)
-end
-
-function _filter_feasible(candidates, μ̄, σ̄²)
-    feasible = []
-    for D in candidates
-        try
-            exists_dist_from_mean_var(D, μ̄, σ̄²)
-            push!(feasible, D)
-        catch
-        end
-    end
-    return feasible
 end
