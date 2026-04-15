@@ -16,6 +16,9 @@ _natural_support(::Type{<:Union{Beta,Uniform}}) = :unit
 _natural_support(::Type{<:Union{Binomial,DiscreteUniform}}) = :integer_bounded
 _natural_support(::Type{<:Union{Poisson,NegativeBinomial,Geometric}}) = :integer_nonneg
 
+# PartialDist delegates to the underlying distribution type
+_natural_support(::PartialDist{D}) where {D} = _natural_support(D)
+
 function _requested_support_shape(lo, hi)
     if lo == -Inf && hi == Inf
         return :real
@@ -129,13 +132,22 @@ end
 
 # --- Affine transforms ---
 
+function _build_on_standard(D, μ_std, σ²_std)
+    # For PartialDist with 1 free param, use mean only (overdetermined with mean+var)
+    if D isa PartialDist && length(free_params(D)) == 1
+        return dist_from_mean(D, μ_std)
+    else
+        return dist_from_mean_var(D, μ_std, σ²_std)
+    end
+end
+
 function _affine_shift(D, μ̄, σ̄², a)
-    d = dist_from_mean_var(D, μ̄ - a, σ̄²)
+    d = _build_on_standard(D, μ̄ - a, σ̄²)
     return LocationScale(Float64(a), 1.0, d)
 end
 
 function _affine_flip(D, μ̄, σ̄², b)
-    d = dist_from_mean_var(D, b - μ̄, σ̄²)
+    d = _build_on_standard(D, b - μ̄, σ̄²)
     return LocationScale(Float64(b), -1.0, d; check_args=false)
 end
 
@@ -143,7 +155,7 @@ function _affine_scale(D, μ̄, σ̄², a, b)
     w = b - a
     μ_std = (μ̄ - a) / w
     σ²_std = σ̄² / w^2
-    d = dist_from_mean_var(D, μ_std, σ²_std)
+    d = _build_on_standard(D, μ_std, σ²_std)
     return LocationScale(Float64(a), Float64(w), d)
 end
 

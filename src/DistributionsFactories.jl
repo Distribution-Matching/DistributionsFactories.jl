@@ -36,12 +36,15 @@ include("dist_from_mean_var.jl")
 include("dist_from_variants.jl")
 include("dist_from_mean.jl")
 include("dist_from_quantile.jl")
-include("dist_on_support.jl")
 include("partial_dist.jl")
 include("dist_macro.jl")
+include("dist_on_support.jl")
+include("make_dist.jl")
 include("available_distributions.jl")
 
-export dist_from_mean_var_on_support,
+export make_dist,
+        dist_exists,
+        dist_from_mean_var_on_support,
         dist_from_mean_var,
         dist_from_mean_std,
         dist_from_mean_cv,
