@@ -97,14 +97,14 @@ and quantile keywords. `D` can be a type, instance, or `PartialDist` (via `@dist
 | `mean` | Target mean μ̄ |
 | `var` | Target variance σ̄² |
 | `std` | Target standard deviation σ̄ |
-| `cv` | Coefficient of variation σ̄/μ̄ |
-| `scv` | Squared coefficient of variation σ̄²/μ̄² |
-| `second_moment` | E[X²] |
-| `median` | Median (0.5 quantile) |
-| `q1` | First quartile (0.25 quantile) |
-| `q3` | Third quartile (0.75 quantile) |
-| `iqr` | Interquartile range (with `median`) |
-| `quantiles` | Vector of `(p, q)` tuples for arbitrary quantile matching |
+| `cv` | Target coefficient of variation σ̄/μ̄ |
+| `scv` | Target squared coefficient of variation σ̄²/μ̄² |
+| `second_moment` | Target second moment E[X²] |
+| `median` | Target median (0.5 quantile) |
+| `q1` | Target first quartile (0.25 quantile) |
+| `q3` | Target third quartile (0.75 quantile) |
+| `iqr` | Target interquartile range (with `median`) |
+| `quantiles` | Target quantiles as vector of `(p, q)` tuples |
 | `support` | Target support interval (`a..b`, `a..Inf`, `a:b`) |
 
 ### `dist_exists(D; kwargs...)`

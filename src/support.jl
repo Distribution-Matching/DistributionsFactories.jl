@@ -122,7 +122,7 @@ function _dist_on_support_discrete(D, μ̄, σ̄², r::AbstractUnitRange)
 
     if natural === :integer_bounded
         d = dist_from_mean_var(D, μ̄ - a, σ̄²)
-        return LocationScale(a, 1, d; check_args=false)
+        return a + 1 * d
     elseif natural === :integer_nonneg
         throw(ArgumentError("$D on a bounded range is not yet supported"))
     end
@@ -143,12 +143,12 @@ end
 
 function _affine_shift(D, μ̄, σ̄², a)
     d = _build_on_standard(D, μ̄ - a, σ̄²)
-    return LocationScale(Float64(a), 1.0, d)
+    return Float64(a) + d
 end
 
 function _affine_flip(D, μ̄, σ̄², b)
     d = _build_on_standard(D, b - μ̄, σ̄²)
-    return LocationScale(Float64(b), -1.0, d; check_args=false)
+    return Float64(b) + (-1.0) * d
 end
 
 function _affine_scale(D, μ̄, σ̄², a, b)
@@ -156,7 +156,7 @@ function _affine_scale(D, μ̄, σ̄², a, b)
     μ_std = (μ̄ - a) / w
     σ²_std = σ̄² / w^2
     d = _build_on_standard(D, μ_std, σ²_std)
-    return LocationScale(Float64(a), Float64(w), d)
+    return Float64(a) + Float64(w) * d
 end
 
 # --- Truncation ---

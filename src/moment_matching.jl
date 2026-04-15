@@ -44,7 +44,7 @@ end
 
 function exists_dist_from_mean_var(::Type{TDist}, μ̄::Number, σ̄²::Number)
     base_exists_dist_from_mean_var(TDist, μ̄, σ̄²)
-    if μ̄≠0
+    if !isapprox(μ̄, 0; atol=1e-12)
         throw(DomainError("TDist: the condition μ̄ = 0 is not satisfied"))
     end
     if σ̄²≤1
@@ -158,15 +158,15 @@ end
 
 function exists_dist_from_mean_var(::Type{Chi}, μ̄::Number, σ̄²::Number)
     base_exists_dist_from_mean_var(Chi, μ̄, σ̄²)
-    if isapprox(μ̄, √(2)*gamma((μ̄^2+σ̄²+1)/2)/gamma((μ̄^2+σ̄²)/2); rtol=1e-10, atol=1e-12)
-        throw(DomainError("Chi: the condition μ̄=√(2)Γ((μ̄²+σ̄²+1)/2)/Γ((μ̄²+σ̄²)/2) is not satisfied"))
+    if !isapprox(μ̄, √(2)*gamma((μ̄^2+σ̄²+1)/2)/gamma((μ̄^2+σ̄²)/2); rtol=1e-10, atol=1e-12)
+        throw(DomainError("Chi: the condition μ̄ = √(2)Γ((μ̄²+σ̄²+1)/2)/Γ((μ̄²+σ̄²)/2) is not satisfied"))
     end
     return true
 end
 
 function exists_dist_from_mean_var(::Type{Rayleigh}, μ̄::Number, σ̄²::Number)
     base_exists_dist_from_mean_var(Rayleigh, μ̄, σ̄²)
-    if √(σ̄²)/μ̄≠√((4-π)/π)
+    if !isapprox(√(σ̄²)/μ̄, √((4-π)/π); rtol=1e-10)
         throw(DomainError("Rayleigh: the condition CV = √((4-π)/π) is not satisfied"))
     end
     return true
