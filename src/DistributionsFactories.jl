@@ -36,6 +36,7 @@ include("dist_from_mean_var.jl")
 include("dist_from_variants.jl")
 include("dist_from_mean.jl")
 include("dist_from_quantile.jl")
+include("dist_on_support.jl")
 include("available_distributions.jl")
 
 export dist_from_mean_var,
