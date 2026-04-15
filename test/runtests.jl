@@ -6,6 +6,7 @@ include("test_mean_var.jl")
 include("test_mean_variants.jl")
 include("test_quantile.jl")
 include("test_numerical_aux_solvers.jl")
+include("test_available_distributions.jl")
 
 
 @testset "Mean Var tests" begin
@@ -46,6 +47,17 @@ end
     @test test_mean_quantile_beta()
     @test test_median_iqr_normal()
     @test test_mean_median_gamma()
+end
+
+@testset "available_distributions" begin
+    @test test_available_by_interval()
+    @test test_available_by_realinterval()
+    @test test_available_by_range()
+    @test test_available_with_mean_var()
+    @test test_available_with_mean_std()
+    @test test_available_with_mean_cv()
+    @test test_available_kwargs_only()
+    @test test_available_kwargs_requires_dispersion()
 end
 
 @testset "solve_beta_ratio" begin
