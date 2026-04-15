@@ -7,6 +7,7 @@ include("test_mean_variants.jl")
 include("test_quantile.jl")
 include("test_numerical_aux_solvers.jl")
 include("test_available_distributions.jl")
+include("test_dist_on_support.jl")
 
 
 @testset "Mean Var tests" begin
@@ -74,6 +75,18 @@ end
     @test test_available_with_mean_cv()
     @test test_available_kwargs_only()
     @test test_available_kwargs_requires_dispersion()
+end
+
+@testset "dist_on_support" begin
+    @test test_support_beta_scaled()
+    @test test_support_uniform_scaled()
+    @test test_support_gamma_shifted()
+    @test test_support_gamma_flipped()
+    @test test_support_binomial_shifted()
+    @test test_support_discrete_uniform_shifted()
+    @test test_support_normal_truncated()
+    @test test_support_gamma_truncated()
+    @test test_support_errors()
 end
 
 @testset "solve_beta_ratio" begin
