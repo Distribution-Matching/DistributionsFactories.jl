@@ -89,22 +89,38 @@ available_distributions(mean=5.0, cv=1.0)
 
 ## The `@dist` macro
 
-The `@dist` macro provides concise syntax for creating distribution specifications.
-Use `_` as a placeholder for parameters to be solved. The result is passed to any
-`dist_from_*` function:
+The `@dist` macro creates distribution specifications where `_` marks parameters
+to be solved from moment constraints. The result is a `PartialDist` that can be
+passed to any `dist_from_*` function.
 
 ```julia
-# @dist with a bare type — returns the type itself
+# Create a partial spec — α is fixed, θ is to be solved
+spec = @dist Gamma(3.0, _)
+fixed_params(spec)   # (α = 3.0,)
+free_params(spec)    # (:θ,)
+```
+
+Use it with any `dist_from_*` function:
+
+```julia
+# Solve the free parameter from different moment specifications
+dist_from_mean(@dist(Gamma(3.0, _)), 5.0)           # solve θ from mean
+dist_from_var(@dist(Logistic(2.0, _)), 22.3)         # solve θ from variance
+dist_from_std(@dist(Logistic(2.0, _)), 4.0)          # solve θ from std
+dist_from_mean_var(@dist(Normal(0.0, _)), 0.0, 4.0)  # solve σ from mean+var
+dist_from_mean_cv(@dist(Gamma(4.0, _)), 5.0, 0.5)    # solve θ from mean+cv
+dist_from_mean_std(@dist(Normal(_, 2.0)), 3.0, 2.0)  # solve μ from mean+std
+dist_from_mean(@dist(Beta(2.0, _)), 0.4)             # solve β from mean
+```
+
+The macro also handles bare types and full instances:
+
+```julia
+# Bare type — same as passing the type directly
 dist_from_mean_var(@dist(Gamma), 5.0, 3.0)
 
-# @dist with _ placeholders — creates a PartialDist
-dist_from_mean(@dist(Gamma(3.0, _)), 5.0)          # fix α=3, solve θ from mean
-dist_from_mean(@dist(Normal(_, 1.0)), 3.0)          # fix σ=1, solve μ from mean
-dist_from_mean(@dist(Beta(2.0, _)), 0.4)            # fix α=2, solve β from mean
-dist_from_mean_var(@dist(Normal(0.0, _)), 0.0, 4.0) # fix μ=0, solve σ from var
-
-# @dist with all params — returns a full instance
-dist_from_mean_var(@dist(TDist(7)), 5.0, 2.0)       # LocationScale wrap
+# Full instance — wraps in LocationScale if moments differ
+dist_from_mean_var(@dist(TDist(7)), 5.0, 2.0)
 ```
 
 ## Distributions covered
