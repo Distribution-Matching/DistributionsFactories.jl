@@ -129,24 +129,71 @@ available_distributions(mean=5.0, cv=1.0)          # across all supports
 
 ### The `@dist` macro and `PartialDist`
 
-Use `@dist` to create partial distribution specifications where `_` marks parameters
-to be solved. The result is a `PartialDist` passed to `make_dist`:
+The `@dist` macro creates distribution specifications. Use `_` as a placeholder for
+parameters that should be solved from moment constraints. The macro's only job is
+to parse the expression — all solving is done by `make_dist` (or any `dist_from_*`
+function).
+
+**Three forms:**
+
+```julia
+# 1. Bare type — returns the type itself
+@dist Gamma           # → Gamma
+
+# 2. Partial — underscore marks parameters to solve
+@dist Gamma(3.0, _)   # → PartialDist{Gamma}  (α=3.0 fixed, θ=missing)
+@dist Normal(_, 1.0)  # → PartialDist{Normal} (μ=missing, σ=1.0 fixed)
+
+# 3. Full instance — returns the distribution as-is
+@dist TDist(7)        # → TDist(7)
+@dist Normal(3.0, 2.0) # → Normal(3.0, 2.0)
+```
+
+**Inspect a `PartialDist`:**
 
 ```julia
 spec = @dist Gamma(3.0, _)
 fixed_params(spec)   # (α = 3.0,)
 free_params(spec)    # (:θ,)
-
-d = make_dist(spec, mean=5.0)       # solve θ from mean
-d = make_dist(spec, var=3.0)        # solve θ from variance
-d = make_dist(spec, mean=5.0, cv=0.5)  # solve θ from mean+cv
+typeof(spec)         # PartialDist{Gamma, @NamedTuple{α::Float64, θ::Missing}}
 ```
 
-The `PartialDist` type encodes fixed/free parameters in the type system:
+**Pass to `make_dist` to solve the free parameter(s):**
 
 ```julia
-typeof(@dist Gamma(3.0, _))
-# PartialDist{Gamma, @NamedTuple{α::Float64, θ::Missing}}
+spec = @dist Gamma(3.0, _)
+d = make_dist(spec, mean=5.0)          # solve θ from mean
+d = make_dist(spec, var=3.0)           # solve θ from variance
+
+spec = @dist Logistic(2.0, _)
+d = make_dist(spec, std=4.0)           # fix location, solve scale from std
+
+spec = @dist Normal(_, 1.0)
+d = make_dist(spec, mean=3.0)          # fix σ, solve μ from mean
+
+spec = @dist Beta(2.0, _)
+d = make_dist(spec, mean=0.4)          # fix α, solve β from mean
+```
+
+**Full instances wrap in LocationScale when moments are given:**
+
+```julia
+spec = @dist TDist(7)
+d = make_dist(spec, mean=5.0, var=2.0) # wraps TDist(7) in LocationScale
+mean(d), var(d)                         # (5.0, 2.0)
+```
+
+**Note on syntax:** When used standalone, no parentheses are needed
+(`@dist Gamma(3.0, _)`). When used inline as a function argument,
+parentheses are required so Julia parses it correctly:
+
+```julia
+# Standalone — no parens
+spec = @dist Gamma(3.0, _)
+d = make_dist(spec, mean=5.0)
+
+# Inline — parens required
+d = make_dist(@dist(Gamma(3.0, _)), mean=5.0)
 ```
 
 ### Lower-level functions
