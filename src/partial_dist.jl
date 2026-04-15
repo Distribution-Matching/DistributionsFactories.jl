@@ -150,6 +150,38 @@ function dist_from_mean_var(p::PartialDist{D}, μ̄::Number, σ̄²::Number) whe
     end
 end
 
+"""
+    dist_from_var(p::PartialDist, σ̄²)
+
+Construct a distribution from a `PartialDist` with one `missing` parameter,
+solving it from the variance `σ̄²`.
+"""
+function dist_from_var(p::PartialDist{D}, σ̄²::Number) where {D}
+    fixed, free = _split_params(p)
+    length(free) == 1 || throw(ArgumentError(
+        "dist_from_var with PartialDist requires exactly 1 missing parameter, got $(length(free)): $free"))
+
+    free_name = first(free)
+    sol = find_zero(
+        x -> begin
+            full_params = _fill_params(p, free_name, x)
+            var(D(full_params...)) - σ̄²
+        end,
+        _initial_guess(D, free_name, √σ̄²)
+    )
+
+    full_params = _fill_params(p, free_name, sol)
+    return D(full_params...)
+end
+
+# Convenience wrappers for PartialDist — delegate to dist_from_mean_var or dist_from_var
+
+dist_from_std(p::PartialDist, σ̄::Number) = dist_from_var(p, σ̄^2)
+dist_from_mean_std(p::PartialDist, μ̄::Number, σ̄::Number) = dist_from_mean_var(p, μ̄, σ̄^2)
+dist_from_mean_cv(p::PartialDist, μ̄::Number, cv::Number) = dist_from_mean_var(p, μ̄, (cv * μ̄)^2)
+dist_from_mean_scv(p::PartialDist, μ̄::Number, scv::Number) = dist_from_mean_var(p, μ̄, scv * μ̄^2)
+dist_from_mean_second_moment(p::PartialDist, μ̄::Number, m2::Number) = dist_from_mean_var(p, μ̄, m2 - μ̄^2)
+
 # --- Internal helpers ---
 
 function _split_params(p::PartialDist{D}) where {D}

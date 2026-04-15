@@ -100,6 +100,10 @@ end
     @test test_partial_all_missing_delegates()
     @test test_partial_beta()
     @test test_instance_tdist()
+    @test test_partial_dist_from_var()
+    @test test_partial_dist_from_std()
+    @test test_partial_dist_from_mean_cv()
+    @test test_partial_dist_from_mean_std()
     @test test_type_via_macro()
 end
 
