@@ -19,6 +19,34 @@ end
 
 PartialDist{D}(nt::NT) where {D<:Distribution, NT<:NamedTuple} = PartialDist{D, NT}(nt)
 
+"""
+    fixed_params(p::PartialDist)
+
+Return a `NamedTuple` of the parameters that are fixed (not `missing`).
+
+```julia
+fixed_params(@dist Gamma(3.0, _))   # (α = 3.0,)
+```
+"""
+function fixed_params(p::PartialDist)
+    keys_fixed = [k for k in keys(p.params) if !ismissing(p.params[k])]
+    vals_fixed = [p.params[k] for k in keys_fixed]
+    return NamedTuple{Tuple(keys_fixed)}(Tuple(vals_fixed))
+end
+
+"""
+    free_params(p::PartialDist)
+
+Return a `Tuple` of the parameter names that are `missing` (to be solved).
+
+```julia
+free_params(@dist Gamma(3.0, _))   # (:θ,)
+```
+"""
+function free_params(p::PartialDist)
+    return Tuple(k for k in keys(p.params) if ismissing(p.params[k]))
+end
+
 function _param_names(::Type{D}) where {D<:Distribution}
     return fieldnames(D)
 end
