@@ -1,59 +1,164 @@
-# Registry of distributions by support type
+# Registry of distributions by support type and discovery API
 
-const _SUPPORT_DISTRIBUTIONS = Dict{Symbol, Vector{Any}}(
-    :real => [Normal, TDist, Logistic, Laplace, Gumbel, SymTriangularDist],
-    :positive => [Gamma, Erlang, Exponential, LogNormal, Weibull, Frechet,
-                  Chi, Chisq, Rayleigh, FDist, InverseGamma, Pareto, FoldedNormal],
-    :unit => [Beta, Uniform],
-    :integer_nonneg => [Poisson, NegativeBinomial, Geometric],
-    :integer_bounded => [Binomial, DiscreteUniform],
-)
+const _SUPPORT_REAL = [Normal, TDist, Logistic, Laplace, Gumbel, SymTriangularDist]
+const _SUPPORT_POSITIVE = [Gamma, Erlang, Exponential, LogNormal, Weibull, Frechet,
+                           Chi, Chisq, Rayleigh, FDist, InverseGamma, Pareto, FoldedNormal]
+const _SUPPORT_UNIT = [Beta, Uniform]
+const _SUPPORT_INTEGER_NONNEG = [Poisson, NegativeBinomial, Geometric]
+const _SUPPORT_INTEGER_BOUNDED = [Binomial, DiscreteUniform]
 
-const _VALID_SUPPORTS = keys(_SUPPORT_DISTRIBUTIONS)
+function _classify_interval(I::AbstractInterval)
+    lo, hi = endpoints(I)
+    if lo == -Inf && hi == Inf
+        return :real
+    elseif lo == 0 && hi == Inf
+        return :positive
+    elseif lo == 0 && hi == 1
+        return :unit
+    else
+        return :bounded
+    end
+end
+
+function _distributions_for_support(support::Symbol)
+    support === :real     && return copy(_SUPPORT_REAL)
+    support === :positive && return copy(_SUPPORT_POSITIVE)
+    support === :unit     && return copy(_SUPPORT_UNIT)
+    support === :integer_nonneg  && return copy(_SUPPORT_INTEGER_NONNEG)
+    support === :integer_bounded && return copy(_SUPPORT_INTEGER_BOUNDED)
+    return []
+end
+
+function _distributions_for_interval(I::AbstractInterval)
+    support = _classify_interval(I)
+    if support === :bounded
+        # For now, only [0,1] is supported as bounded continuous.
+        # Future: AffineDistribution will handle arbitrary [a,b].
+        return []
+    end
+    return _distributions_for_support(support)
+end
+
+function _distributions_for_range(r::AbstractUnitRange)
+    lo, hi = first(r), last(r)
+    if lo == 0 && hi == typemax(eltype(r))
+        return copy(_SUPPORT_INTEGER_NONNEG)
+    else
+        return copy(_SUPPORT_INTEGER_BOUNDED)
+    end
+end
+
+# --- Convert keyword specifications to (μ̄, σ̄²) ---
+
+function _resolve_mean_var(; mean=nothing, var=nothing, std=nothing,
+                            cv=nothing, scv=nothing, second_moment=nothing,
+                            median=nothing, kwargs...)
+    μ̄ = mean
+    σ̄² = var
+
+    if μ̄ !== nothing
+        if std !== nothing
+            σ̄² === nothing || throw(ArgumentError("Cannot specify both var and std"))
+            σ̄² = std^2
+        elseif cv !== nothing
+            σ̄² === nothing || throw(ArgumentError("Cannot specify both var and cv"))
+            σ̄² = (cv * μ̄)^2
+        elseif scv !== nothing
+            σ̄² === nothing || throw(ArgumentError("Cannot specify both var and scv"))
+            σ̄² = scv * μ̄^2
+        elseif second_moment !== nothing
+            σ̄² === nothing || throw(ArgumentError("Cannot specify both var and second_moment"))
+            σ̄² = second_moment - μ̄^2
+        end
+    end
+
+    return μ̄, σ̄²
+end
+
+# --- Public API ---
 
 """
-    available_distributions(support::Symbol)
+    available_distributions(I::AbstractInterval; kwargs...)
 
-List the distribution types available for a given support.
+List distribution types whose support matches the interval `I`.
+Uses the `..` operator from IntervalSets.jl to specify intervals.
 
-Supported values for `support`:
-- `:real` — distributions on (-∞, ∞)
-- `:positive` — distributions on [0, ∞)
-- `:unit` — distributions on [0, 1]
-- `:integer_nonneg` — discrete distributions on {0, 1, 2, …}
-- `:integer_bounded` — discrete distributions on {0, …, n}
+When keyword arguments specifying moments are provided, returns only those
+distributions that can be constructed with the given specification.
 
-Returns a `Vector` of distribution types.
+# Supported intervals
+- `(-Inf..Inf)` — real-line distributions
+- `(0..Inf)` — positive distributions
+- `(0..1)` — unit-interval distributions
 
-# Example
+# Keyword arguments for moment specification
+- `mean` and `var` — mean and variance
+- `mean` and `std` — mean and standard deviation
+- `mean` and `cv` — mean and coefficient of variation
+- `mean` and `scv` — mean and squared coefficient of variation
+- `mean` and `second_moment` — mean and E[X²]
+
+# Examples
 ```julia
-available_distributions(:positive)
-# [Gamma, Erlang, Exponential, LogNormal, Weibull, ...]
+available_distributions(0..Inf)
+available_distributions(0..Inf, mean=5.0, var=3.0)
+available_distributions(0..1, mean=0.5, std=0.2)
 ```
 """
-function available_distributions(support::Symbol)
-    support ∈ _VALID_SUPPORTS || throw(ArgumentError(
-        "Unknown support :$support. Valid options: $(join(_VALID_SUPPORTS, ", ", " and "))"))
-    return copy(_SUPPORT_DISTRIBUTIONS[support])
+function available_distributions(I::AbstractInterval; kwargs...)
+    candidates = _distributions_for_interval(I)
+    μ̄, σ̄² = _resolve_mean_var(; kwargs...)
+    if μ̄ !== nothing && σ̄² !== nothing
+        return _filter_feasible(candidates, μ̄, σ̄²)
+    end
+    return candidates
 end
 
 """
-    available_distributions(support::Symbol, μ̄, σ̄²)
+    available_distributions(r::AbstractUnitRange; kwargs...)
 
-List the distribution types on the given `support` that can be constructed with
-mean `μ̄` and variance `σ̄²`. Tries each candidate via `exists_dist_from_mean_var`
-and returns only those that are feasible.
+List distribution types for discrete supports specified as integer ranges.
 
-Returns a `Vector` of distribution types.
+- `0:n` — bounded discrete distributions (Binomial, DiscreteUniform)
 
-# Example
+# Examples
 ```julia
-available_distributions(:positive, 5.0, 3.0)
-# [Gamma, LogNormal, Weibull, Frechet, InverseGamma]
+available_distributions(0:10)
+available_distributions(0:10, mean=5.0, var=2.0)
 ```
 """
-function available_distributions(support::Symbol, μ̄::Number, σ̄²::Number)
-    candidates = available_distributions(support)
+function available_distributions(r::AbstractUnitRange; kwargs...)
+    candidates = _distributions_for_range(r)
+    μ̄, σ̄² = _resolve_mean_var(; kwargs...)
+    if μ̄ !== nothing && σ̄² !== nothing
+        return _filter_feasible(candidates, μ̄, σ̄²)
+    end
+    return candidates
+end
+
+"""
+    available_distributions(; kwargs...)
+
+List all distribution types (across all supports) that can be constructed with
+the given moment specification. At least `mean` and one dispersion keyword must
+be provided.
+
+# Examples
+```julia
+available_distributions(mean=5.0, var=3.0)
+available_distributions(mean=0.5, std=0.2)
+```
+"""
+function available_distributions(; kwargs...)
+    μ̄, σ̄² = _resolve_mean_var(; kwargs...)
+    (μ̄ !== nothing && σ̄² !== nothing) || throw(ArgumentError(
+        "Must provide mean and a dispersion measure (var, std, cv, scv, or second_moment)"))
+    all_types = vcat(_SUPPORT_REAL, _SUPPORT_POSITIVE, _SUPPORT_UNIT,
+                     _SUPPORT_INTEGER_NONNEG, _SUPPORT_INTEGER_BOUNDED)
+    return _filter_feasible(all_types, μ̄, σ̄²)
+end
+
+function _filter_feasible(candidates, μ̄, σ̄²)
     feasible = []
     for D in candidates
         try
@@ -61,28 +166,6 @@ function available_distributions(support::Symbol, μ̄::Number, σ̄²::Number)
             push!(feasible, D)
         catch
         end
-    end
-    return feasible
-end
-
-"""
-    available_distributions(μ̄, σ̄²)
-
-List all distribution types (across all supports) that can be constructed with
-mean `μ̄` and variance `σ̄²`.
-
-Returns a `Vector` of distribution types.
-
-# Example
-```julia
-available_distributions(0.5, 0.05)
-# [Normal, Logistic, Laplace, ..., Gamma, ..., Beta, Uniform]
-```
-"""
-function available_distributions(μ̄::Number, σ̄²::Number)
-    feasible = []
-    for support in _VALID_SUPPORTS
-        append!(feasible, available_distributions(support, μ̄, σ̄²))
     end
     return feasible
 end

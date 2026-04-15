@@ -17,6 +17,7 @@ using SpecialFunctions
 using Polynomials
 using Roots
 using QuadGK
+using IntervalSets
 
 # Marker types for distributions not in Distributions.jl
 abstract type AbstractDistributionsFactoriesType <: Distribution{Univariate, Continuous} end
@@ -60,6 +61,7 @@ export dist_from_mean_var,
         exists_dist_from_mean_scv,
         exists_dist_from_mean_second_moment,
         available_distributions,
+        ..,
         FoldedNormal,
         DiscreteTriangular,
         DiscreteSymmetricTriangular,
