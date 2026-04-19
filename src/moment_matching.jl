@@ -259,31 +259,44 @@ function exists_dist_from_mean_var(::Type{Geometric}, μ̄::Number, σ̄²::Numb
     return true
 end
 
+_check_truncexp_envelope(name::AbstractString, lo::Real, hi::Real, μ̄::Real, σ̄²::Real) = begin
+    if μ̄ ≤ lo || μ̄ ≥ hi
+        throw(DomainError("Truncated $name: μ̄ must be in ($lo, $hi)"))
+    end
+    σ²_max = _truncexp_max_var(lo, hi, μ̄)
+    # Non-strict with a relative tolerance: Laplace achieves the envelope
+    # exactly when its mode falls outside [lo, hi] (the density reduces to a
+    # truncated exponential there), and Normal/Logistic approach it
+    # arbitrarily closely. The user-facing moments will be computed by
+    # quadrature + truncation-normalization + inv-Langevin Newton; accumulated
+    # relative error sits around 1e-10 in the worst cases. A 1e-8 tolerance
+    # keeps clearly-infeasible points rejected without spuriously flagging
+    # moments that came from a real truncated Normal/Laplace/Logistic.
+    if σ̄² > σ²_max * (1 + 1e-8)
+        throw(DomainError("Truncated $name: σ̄² = $σ̄² exceeds the Langevin " *
+            "feasibility boundary σ²_max ≈ $(σ²_max) at μ̄ = $μ̄ on [$lo, $hi]. " *
+            "The Normal/Laplace/Logistic families share this truncated-exponential " *
+            "upper envelope; use a heavier-tailed family (e.g. Student-t) to exceed it."))
+    end
+    return true
+end
+
 function exists_dist_from_mean_var(d::Truncated{<:Normal}, μ̄::Number, σ̄²::Number)
     base_exists_dist_from_mean_var(Normal, μ̄, σ̄²)
     lo, hi = extrema(d)
-    if μ̄ ≤ lo || μ̄ ≥ hi
-        throw(DomainError("Truncated Normal: μ̄ must be in ($lo, $hi)"))
-    end
-    return true
+    return _check_truncexp_envelope("Normal", lo, hi, μ̄, σ̄²)
 end
 
 function exists_dist_from_mean_var(d::Truncated{<:Laplace}, μ̄::Number, σ̄²::Number)
     base_exists_dist_from_mean_var(Laplace, μ̄, σ̄²)
     lo, hi = extrema(d)
-    if μ̄ ≤ lo || μ̄ ≥ hi
-        throw(DomainError("Truncated Laplace: μ̄ must be in ($lo, $hi)"))
-    end
-    return true
+    return _check_truncexp_envelope("Laplace", lo, hi, μ̄, σ̄²)
 end
 
 function exists_dist_from_mean_var(d::Truncated{<:Logistic}, μ̄::Number, σ̄²::Number)
     base_exists_dist_from_mean_var(Logistic, μ̄, σ̄²)
     lo, hi = extrema(d)
-    if μ̄ ≤ lo || μ̄ ≥ hi
-        throw(DomainError("Truncated Logistic: μ̄ must be in ($lo, $hi)"))
-    end
-    return true
+    return _check_truncexp_envelope("Logistic", lo, hi, μ̄, σ̄²)
 end
 
 function exists_dist_from_mean_var(::Type{TriangularDist}, μ̄::Number, σ̄²::Number)
@@ -712,6 +725,7 @@ Numerical (2D Newton iteration). Construct a truncated Normal on `[lo, hi]`
 (taken from `d`) with mean `μ̄` and variance `σ̄²`. Uses quadrature for moments.
 """
 function dist_from_mean_var(d::Truncated{<:Normal}, μ̄::Number, σ̄²::Number)
+    exists_dist_from_mean_var(d, μ̄, σ̄²)
     lo, hi = extrema(d)
     return _solve_truncated_mean_var(Normal, lo, hi, Float64(μ̄), Float64(σ̄²))
 end
@@ -723,6 +737,7 @@ Numerical (2D Newton iteration). Construct a truncated Laplace on `[lo, hi]`
 (taken from `d`) with mean `μ̄` and variance `σ̄²`. Uses quadrature for moments.
 """
 function dist_from_mean_var(d::Truncated{<:Laplace}, μ̄::Number, σ̄²::Number)
+    exists_dist_from_mean_var(d, μ̄, σ̄²)
     lo, hi = extrema(d)
     return _solve_truncated_mean_var(Laplace, lo, hi, Float64(μ̄), Float64(σ̄²))
 end
@@ -734,6 +749,7 @@ Numerical (2D Newton iteration). Construct a truncated Logistic on `[lo, hi]`
 (taken from `d`) with mean `μ̄` and variance `σ̄²`. Uses quadrature for moments.
 """
 function dist_from_mean_var(d::Truncated{<:Logistic}, μ̄::Number, σ̄²::Number)
+    exists_dist_from_mean_var(d, μ̄, σ̄²)
     lo, hi = extrema(d)
     return _solve_truncated_mean_var(Logistic, lo, hi, Float64(μ̄), Float64(σ̄²))
 end

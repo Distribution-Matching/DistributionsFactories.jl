@@ -15,6 +15,7 @@ include("test_available_distributions.jl")
 include("test_dist_on_support.jl")
 include("test_dist_macro.jl")
 include("test_make_dist.jl")
+include("test_langevin.jl")
 
 
 @testset "Mean Var tests" begin
@@ -143,5 +144,22 @@ end
     @test test_solve_beta_ratio_roundtrip()
     @test test_solve_beta_ratio_edge_cases()
     @test test_solve_beta_ratio_errors()
+end
+
+@testset "Langevin feasibility (truncated Normal/Laplace/Logistic)" begin
+    @test test_langevin_small_vs_closed()
+    @test test_langevin_deriv_matches_finite_diff()
+    @test test_inv_langevin_roundtrip()
+    @test test_inv_langevin_domain_error()
+    @test test_truncexp_max_var_matches_quadrature()
+    @test test_truncexp_max_var_below_bhatia_davis()
+    @test test_truncated_normal_langevin_rejects_above_dome()
+    @test test_truncated_laplace_langevin_rejects_above_dome()
+    @test test_truncated_logistic_langevin_rejects_above_dome()
+    @test test_dist_from_mean_var_truncated_rejects_above_dome()
+    @test test_truncated_normal_roundtrip_feasible()
+    @test test_truncated_laplace_roundtrip_feasible()
+    @test test_truncated_logistic_roundtrip_feasible()
+    @test test_truncated_families_margin_from_dome()
 end
 

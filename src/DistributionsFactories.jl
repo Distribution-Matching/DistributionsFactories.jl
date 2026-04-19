@@ -29,6 +29,7 @@ struct DiscreteSymmetricTriangular <: AbstractDistributionsFactoriesDiscreteType
 struct TruncatedPoisson <: AbstractDistributionsFactoriesDiscreteType end
 
 include("solvers.jl")
+include("langevin.jl")
 include("moment_matching.jl")
 include("quantile_matching.jl")
 include("partial_dist.jl")
