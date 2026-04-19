@@ -155,10 +155,6 @@ end
 # --- dist_exists ---
 
 function test_dist_exists_false()
-    try
-        dist_exists(Exponential, mean=2.5, var=1.5)
-        return false
-    catch e
-        return e isa DomainError
-    end
+    # dist_exists is a pure predicate: infeasible moments → false, never throws.
+    return dist_exists(Exponential, mean=2.5, var=1.5) == false
 end

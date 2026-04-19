@@ -224,21 +224,23 @@ end
 # --- dist_exists ---
 
 """
-    dist_exists(D; mean, var, std, cv, scv, second_moment, support)
+    dist_exists(D; mean, var, std, cv, scv, second_moment, support) -> Bool
 
-Check whether a distribution of type `D` can be constructed with the given
-moment specification, optionally on a given `support`. Returns `true` or
-throws `DomainError`.
+Pure predicate: can a distribution of type `D` be constructed with the given
+moment specification, optionally on a given `support`? Returns `true` or
+`false`; never throws for infeasible moments. (Use [`make_dist`](@ref) to
+actually build the distribution — it throws `DomainError` with a reason when
+this predicate would have returned `false`.)
 
 # Examples
 ```julia
 dist_exists(Beta, mean=0.5, var=0.1)                    # true
-dist_exists(Exponential, mean=2.5, var=1.5)              # throws DomainError
+dist_exists(Exponential, mean=2.5, var=1.5)              # false (needs σ̄² = μ̄²)
 dist_exists(Beta, mean=3.5, var=0.5, support=2..7)       # true
-dist_exists(Pareto, mean=3.0, support=5..Inf)             # throws (μ_std < 0)
+dist_exists(Pareto, mean=3.0, support=5..Inf)            # false (μ_std ≤ 0)
 ```
 """
-function dist_exists(D; support=nothing, kwargs...)
+function dist_exists(D; support=nothing, kwargs...)::Bool
     spec = _moment_spec(; kwargs...)
     if support === nothing
         return _dist_exists(D, spec)
@@ -247,21 +249,21 @@ function dist_exists(D; support=nothing, kwargs...)
     end
 end
 
-_dist_exists(D, s::MeanVarSpec) = exists_dist_from_mean_var(D, s.μ̄, s.σ̄²)
-_dist_exists(D, s::MeanSpec) = true
-_dist_exists(D, s::VarSpec) = true
+_dist_exists(D, s::MeanVarSpec)::Bool = exists_dist_from_mean_var(D, s.μ̄, s.σ̄²)
+_dist_exists(D, s::MeanSpec)::Bool = true
+_dist_exists(D, s::VarSpec)::Bool = true
 
-function _dist_exists_on_support(D, s::MeanVarSpec, support)
+function _dist_exists_on_support(D, s::MeanVarSpec, support)::Bool
     lo, hi = _support_endpoints(support)
     μ_std, σ²_std = _moments_to_standard(D, s.μ̄, s.σ̄², lo, hi)
     return exists_dist_from_mean_var(D, μ_std, σ²_std)
 end
 
-function _dist_exists_on_support(D, s::MeanSpec, support)
+function _dist_exists_on_support(D, s::MeanSpec, support)::Bool
     lo, hi = _support_endpoints(support)
     μ_std, _ = _moments_to_standard(D, s.μ̄, 1.0, lo, hi)
     if μ_std ≤ 0 && _natural_support(D) === :positive
-        throw(DomainError("$D on ($lo, $hi): transformed mean μ_std=$μ_std must be > 0"))
+        return false
     end
     return true
 end
@@ -364,17 +366,8 @@ function _resolve_mean_var(; mean=nothing, var=nothing, std=nothing,
     return μ̄, σ̄²
 end
 
-function _filter_feasible(candidates, μ̄, σ̄²)
-    feasible = []
-    for D in candidates
-        try
-            exists_dist_from_mean_var(D, μ̄, σ̄²)
-            push!(feasible, D)
-        catch
-        end
-    end
-    return feasible
-end
+_filter_feasible(candidates, μ̄, σ̄²) =
+    filter(D -> exists_dist_from_mean_var(D, μ̄, σ̄²), candidates)
 
 # --- Public API ---
 

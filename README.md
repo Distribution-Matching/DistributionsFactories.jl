@@ -122,12 +122,13 @@ and quantile keywords. `D` can be a type, instance, or `DistSpec` (via `@dist`).
 
 ### `dist_exists(D; kwargs...)`
 
-Check whether a distribution of type `D` can be constructed with the given specification.
-Returns `true` or throws `DomainError`.
+Pure predicate — returns `true` or `false`; never throws for infeasible moments.
+Use `make_dist` to actually construct (that one throws `DomainError` with a
+reason explaining why).
 
 ```julia
 dist_exists(Beta, mean=0.5, var=0.1)           # true
-dist_exists(Exponential, mean=2.5, var=1.5)    # throws DomainError
+dist_exists(Exponential, mean=2.5, var=1.5)    # false (Exponential needs σ̄² = μ̄²)
 ```
 
 ### `available_distributions(support; kwargs...)`

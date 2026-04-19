@@ -100,15 +100,9 @@ function test_truncated_normal_langevin_rejects_above_dome()
     d = truncated(Normal(), -0.5, 0.5)
     μ̄ = -0.3
     σ²_max = _truncexp_max_var(-0.5, 0.5, μ̄)
-    # Just above the dome: infeasible.
-    try
-        exists_dist_from_mean_var(d, μ̄, σ²_max * 1.01)
-        return false
-    catch e
-        e isa DomainError || return false
-    end
-    # Well inside the dome: feasible.
-    exists_dist_from_mean_var(d, μ̄, σ²_max * 0.5) == true || return false
+    # Pure-predicate semantics: above the dome → false, inside → true.
+    exists_dist_from_mean_var(d, μ̄, σ²_max * 1.01) && return false
+    exists_dist_from_mean_var(d, μ̄, σ²_max * 0.5) || return false
     return true
 end
 
@@ -116,13 +110,8 @@ function test_truncated_laplace_langevin_rejects_above_dome()
     d = truncated(Laplace(), -0.5, 0.5)
     μ̄ = 0.1
     σ²_max = _truncexp_max_var(-0.5, 0.5, μ̄)
-    try
-        exists_dist_from_mean_var(d, μ̄, σ²_max * 1.5)
-        return false
-    catch e
-        e isa DomainError || return false
-    end
-    exists_dist_from_mean_var(d, μ̄, σ²_max * 0.5) == true || return false
+    exists_dist_from_mean_var(d, μ̄, σ²_max * 1.5) && return false
+    exists_dist_from_mean_var(d, μ̄, σ²_max * 0.5) || return false
     return true
 end
 
@@ -130,13 +119,8 @@ function test_truncated_logistic_langevin_rejects_above_dome()
     d = truncated(Logistic(), -0.5, 0.5)
     # At the midpoint, σ²_max = (b-a)²/12 = 1/12.
     isapprox(_truncexp_max_var(-0.5, 0.5, 0.0), 1/12; rtol=1e-10) || return false
-    try
-        exists_dist_from_mean_var(d, 0.0, 1/12 + 0.01)
-        return false
-    catch e
-        e isa DomainError || return false
-    end
-    exists_dist_from_mean_var(d, 0.0, 0.05) == true || return false
+    exists_dist_from_mean_var(d, 0.0, 1/12 + 0.01) && return false
+    exists_dist_from_mean_var(d, 0.0, 0.05) || return false
     return true
 end
 
@@ -183,10 +167,8 @@ function _roundtrip_family(D, parents, intervals)
             (isfinite(μ̄) && isfinite(σ̄²) && σ̄² > 0) || continue
 
             d_template = truncated(D(), a, b)
-            try
-                exists_dist_from_mean_var(d_template, μ̄, σ̄²) == true || return false
-            catch e
-                @info "Roundtrip feasibility failed" D parent a b μ̄ σ̄² σ²_max=_truncexp_max_var(a, b, μ̄) e
+            if !exists_dist_from_mean_var(d_template, μ̄, σ̄²)
+                @info "Roundtrip feasibility failed" D parent a b μ̄ σ̄² σ²_max=_truncexp_max_var(a, b, μ̄)
                 return false
             end
         end

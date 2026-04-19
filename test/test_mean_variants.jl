@@ -77,14 +77,9 @@ function test_exists_variants()
     dist_exists(Gamma, mean=2.0, cv=0.5) || return false
     dist_exists(Gamma, mean=2.0, scv=0.25) || return false
 
-    # Invalid: negative mean for Gamma
+    # Invalid: negative mean for Gamma — predicate should return false, not throw.
     for kwargs in [(mean=-1.0, std=1.0), (mean=-1.0, cv=0.5), (mean=-1.0, scv=0.25)]
-        try
-            dist_exists(Gamma; kwargs...)
-            return false
-        catch e
-            e isa DomainError || return false
-        end
+        dist_exists(Gamma; kwargs...) && return false
     end
     return true
 end
