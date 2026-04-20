@@ -58,8 +58,10 @@ function test_available_kwargs_only()
 end
 
 function test_available_kwargs_requires_dispersion()
+    # Calling with no kwargs at all is still rejected; mean-alone is now
+    # supported (returns the candidates whose dist_from_mean works).
     try
-        available_distributions(mean=5.0)
+        available_distributions()
         return false
     catch e
         return e isa ArgumentError

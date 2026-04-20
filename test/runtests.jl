@@ -188,6 +188,13 @@ end
     @test test_trunc_tdist_factory_half_below_roundtrip()
     @test test_trunc_tdist_factory_half_above_roundtrip()
     @test test_trunc_tdist_factory_two_sided_not_implemented()
+    @test test_rayleigh_from_quantile()
+    @test test_lognormal_from_quantiles()
+    @test test_weibull_from_quantiles()
+    @test test_pareto_from_quantiles()
+    @test test_lognormal_from_mean_quantile()
+    @test test_geometric_from_quantile()
+    @test test_available_distributions_no_support_quantile()
 end
 
 @testset "Langevin feasibility (truncated Normal/Laplace/Logistic)" begin

@@ -33,6 +33,25 @@ function dist_from_quantile(::Type{Exponential}, p::Number, q::Number)
     return Exponential(θ)
 end
 
+function dist_from_quantile(::Type{Rayleigh}, p::Number, q::Number)
+    (0 < p < 1) || throw(DomainError(p, "p must be in (0,1)"))
+    q > 0 || throw(DomainError(q, "Rayleigh: quantile must be > 0"))
+    # Quantile of Rayleigh(σ): q = σ √(-2 log(1-p))
+    σ = q / √(-2 * log(1 - p))
+    return Rayleigh(σ)
+end
+
+function dist_from_quantile(::Type{Geometric}, p::Number, q::Number)
+    (0 < p < 1) || throw(DomainError(p, "p must be in (0,1)"))
+    q ≥ 0 && isinteger(q) || throw(DomainError(q, "Geometric: quantile must be a non-negative integer"))
+    # Geometric(prob) on {0,1,…} has CDF P(X ≤ k) = 1 - (1-prob)^(k+1).
+    # The exact p-th quantile is the smallest k with 1 - (1-prob)^(k+1) ≥ p,
+    # i.e. (1-prob)^(k+1) ≤ 1-p. For continuous matching we set equality at
+    # k+1, then `prob = 1 - (1-p)^(1/(q+1))`.
+    prob = 1 - (1 - p)^(1 / (q + 1))
+    return Geometric(prob)
+end
+
 # --- Two quantiles (2-parameter distributions) ---
 
 """
@@ -82,6 +101,45 @@ function dist_from_quantiles(::Type{Gamma}, p1::Number, q1::Number, p2::Number, 
     α_sol = exp(logα_sol)
     θ = q1 / quantile(Gamma(α_sol, 1.0), p1)
     return Gamma(α_sol, θ)
+end
+
+function dist_from_quantiles(::Type{LogNormal}, p1::Number, q1::Number, p2::Number, q2::Number)
+    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
+    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
+    q1 > 0 && q2 > 0 || throw(DomainError("LogNormal: quantiles must be > 0"))
+    # log(X) ~ Normal(μ_log, σ_log); reduce to the location-scale Normal solver
+    # on the log-quantiles.
+    d_log = _dist_from_quantiles_location_scale(Normal, p1, log(q1), p2, log(q2))
+    return LogNormal(d_log.μ, d_log.σ)
+end
+
+function dist_from_quantiles(::Type{Weibull}, p1::Number, q1::Number, p2::Number, q2::Number)
+    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
+    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
+    q1 > 0 && q2 > 0 || throw(DomainError("Weibull: quantiles must be > 0"))
+    # Weibull(k, λ) has quantile q = λ·(-log(1-p))^(1/k). Eliminate λ:
+    # q2/q1 = (log(1-p2)/log(1-p1))^(1/k). Solve for k in log-space.
+    r = q2 / q1
+    L = log(1 - p2) / log(1 - p1)
+    L > 0 && L != 1 || throw(DomainError("Weibull: degenerate p values"))
+    k = log(L) / log(r)
+    k > 0 || throw(DomainError("Weibull: quantile spec implies non-positive shape"))
+    λ = q1 / (-log(1 - p1))^(1 / k)
+    return Weibull(k, λ)
+end
+
+function dist_from_quantiles(::Type{Pareto}, p1::Number, q1::Number, p2::Number, q2::Number)
+    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
+    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
+    q1 > 0 && q2 > 0 || throw(DomainError("Pareto: quantiles must be > 0"))
+    # Pareto(α, θ) has quantile q = θ·(1-p)^(-1/α). Same elimination as Weibull.
+    r = q2 / q1
+    L = (1 - p2) / (1 - p1)   # < 1 if p2 > p1
+    L != 1 || throw(DomainError("Pareto: degenerate p values"))
+    α = -log(L) / log(r)
+    α > 0 || throw(DomainError("Pareto: quantile spec implies non-positive shape"))
+    θ = q1 * (1 - p1)^(1 / α)
+    return Pareto(α, θ)
 end
 
 function dist_from_quantiles(::Type{Beta}, p1::Number, q1::Number, p2::Number, q2::Number)
@@ -167,6 +225,18 @@ function dist_from_mean_quantile(::Type{Gamma}, μ̄::Number, p::Number, q::Numb
         1.0
     )
     return Gamma(α_sol, μ̄ / α_sol)
+end
+
+function dist_from_mean_quantile(::Type{LogNormal}, μ̄::Number, p::Number, q::Number)
+    μ̄ > 0 || throw(DomainError(μ̄, "LogNormal: μ̄ must be > 0"))
+    (0 < p < 1) || throw(DomainError(p, "p must be in (0,1)"))
+    q > 0 || throw(DomainError(q, "LogNormal: quantile must be > 0"))
+    # mean = exp(μ + σ²/2), so μ = log(μ̄) - σ²/2. quantile constraint:
+    # exp(μ + σ·z_p) = q where z_p = quantile(Normal(), p). Substitute.
+    # Solve for σ via 1D root-find.
+    z_p = quantile(Normal(), p)
+    σ = find_zero(σ -> log(μ̄) - σ^2/2 + σ*z_p - log(q), 0.5)
+    return LogNormal(log(μ̄) - σ^2/2, σ)
 end
 
 function dist_from_mean_quantile(::Type{Beta}, μ̄::Number, p::Number, q::Number)

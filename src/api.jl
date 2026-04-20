@@ -477,10 +477,10 @@ available_distributions(mean=0.5, std=0.2)
 ```
 """
 function available_distributions(; kwargs...)
-    μ̄, σ̄² = _resolve_mean_var(; kwargs...)
-    (μ̄ !== nothing && σ̄² !== nothing) || throw(ArgumentError(
-        "Must provide mean and a dispersion measure (var, std, cv, scv, or second_moment)"))
+    isempty(kwargs) && throw(ArgumentError(
+        "Must provide at least one moment, mode, or quantile specification"))
+    spec = _moment_spec(; kwargs...)
     all_types = vcat(_SUPPORT_REAL, _SUPPORT_POSITIVE, _SUPPORT_UNIT,
                      _SUPPORT_INTEGER_NONNEG, _SUPPORT_INTEGER_BOUNDED)
-    return _filter_feasible(all_types, μ̄, σ̄²)
+    return _filter_feasible_spec(all_types, spec)
 end

@@ -361,3 +361,60 @@ function test_trunc_tdist_factory_two_sided_not_implemented()
         return e isa ArgumentError
     end
 end
+
+# --- Quantile factory expansions -------------------------------------------
+
+function test_rayleigh_from_quantile()
+    parent = Rayleigh(2.5)
+    q_med = quantile(parent, 0.5)
+    d = make_dist(Rayleigh, median=q_med)
+    return isapprox(d.σ, 2.5; rtol=1e-10)
+end
+
+function test_lognormal_from_quantiles()
+    parent = LogNormal(0.5, 0.7)
+    q1 = quantile(parent, 0.25)
+    q3 = quantile(parent, 0.75)
+    d = make_dist(LogNormal, q1=q1, q3=q3)
+    return isapprox(d.μ, 0.5; rtol=1e-8) && isapprox(d.σ, 0.7; rtol=1e-8)
+end
+
+function test_weibull_from_quantiles()
+    parent = Weibull(1.5, 2.0)
+    p1, p2 = 0.2, 0.8
+    q1 = quantile(parent, p1)
+    q2 = quantile(parent, p2)
+    d = make_dist(Weibull, quantiles=[(p1, q1), (p2, q2)])
+    return isapprox(d.α, 1.5; rtol=1e-8) && isapprox(d.θ, 2.0; rtol=1e-8)
+end
+
+function test_pareto_from_quantiles()
+    parent = Pareto(3.0, 1.5)
+    q1 = quantile(parent, 0.25)
+    q2 = quantile(parent, 0.75)
+    d = make_dist(Pareto, quantiles=[(0.25, q1), (0.75, q2)])
+    return isapprox(d.α, 3.0; rtol=1e-8) && isapprox(d.θ, 1.5; rtol=1e-8)
+end
+
+function test_lognormal_from_mean_quantile()
+    parent = LogNormal(0.3, 0.6)
+    μ̄ = mean(parent)
+    p, q = 0.5, quantile(parent, 0.5)
+    d = make_dist(LogNormal, mean=μ̄, median=q)
+    return isapprox(mean(d), μ̄; rtol=1e-6) && isapprox(median(d), q; rtol=1e-6)
+end
+
+function test_geometric_from_quantile()
+    parent = Geometric(0.4)
+    # Geometric is discrete; quantile inversion uses the continuous equation.
+    # Verify the formula: P(X ≤ q) ≈ p when prob = 1 - (1-p)^(1/(q+1)).
+    q = 2; p = 1 - (1-0.4)^(q+1)        # exact CDF at q for prob=0.4
+    d = DistributionsFactories.dist_from_quantile(Geometric, p, q)
+    return isapprox(d.p, 0.4; rtol=1e-10)
+end
+
+function test_available_distributions_no_support_quantile()
+    # No-support variant should accept median/quantile specs now.
+    cands = available_distributions(median=2.0)
+    return Exponential ∈ cands
+end
