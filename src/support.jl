@@ -11,9 +11,9 @@
 _natural_support(::Type{<:Union{Normal,TDist,Logistic,Laplace,Gumbel,SymTriangularDist}}) = :real
 _natural_support(::Type{<:Union{Gamma,Erlang,Exponential,LogNormal,Weibull,Frechet,
                                 Chi,Chisq,Rayleigh,FDist,InverseGamma,Pareto}}) = :positive
-_natural_support(::Type{FoldedNormal}) = :positive
+_natural_support(::Type{<:FoldedNormal}) = :positive
 _natural_support(::Type{<:Union{Beta,Uniform}}) = :unit
-_natural_support(::Type{<:Union{Binomial,DiscreteUniform}}) = :integer_bounded
+_natural_support(::Type{<:Union{Binomial,DiscreteUniform,DiscreteSymmetricTriangular,DiscreteTriangular}}) = :integer_bounded
 _natural_support(::Type{<:Union{Poisson,NegativeBinomial,Geometric}}) = :integer_nonneg
 
 # DistSpec delegates to the underlying distribution type

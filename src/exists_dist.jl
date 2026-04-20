@@ -172,8 +172,9 @@ function _why_not_dist_from_mean_var(::Type{Binomial}, μ̄::Number, σ̄²::Num
     r = _why_not_positive_var("Binomial", σ̄²); isnothing(r) || return r
     σ̄² < μ̄ || return "Binomial: the condition μ̄ > σ̄² is not satisfied"
     μ̄ > 0   || return "Binomial: the condition μ̄ > 0 is not satisfied"
-    isapprox(μ̄^2/(μ̄-σ̄²), round(μ̄^2/(μ̄-σ̄²)); atol=1e-8) ||
-        return "Binomial: the condition μ̄²/(μ̄-σ̄²) ∈ ℕ is not satisfied"
+    n_raw = μ̄^2 / (μ̄ - σ̄²)
+    isapprox(n_raw, round(n_raw); rtol=1e-8, atol=1e-8) ||
+        return "Binomial: the condition μ̄²/(μ̄-σ̄²) ∈ ℕ is not satisfied (got n ≈ $n_raw)"
     return nothing
 end
 
@@ -254,6 +255,16 @@ function _why_not_dist_from_mean_var(d::Truncated{<:Logistic}, μ̄::Number, σ�
     return _why_not_truncexp_envelope("Logistic", lo, hi, μ̄, σ̄²)
 end
 
+# Truncated Poisson has only λ as a free parameter. Mean+var is overdetermined;
+# only the mean constraint is enforced here (variance becomes a derived check
+# inside the constructor). Feasibility: μ̄ in the open truncation interval.
+function _why_not_dist_from_mean_var(d::Truncated{<:Poisson}, μ̄::Number, σ̄²::Number)
+    r = _why_not_positive_var("Poisson", σ̄²); isnothing(r) || return r
+    lo, hi = d.lower, d.upper
+    (lo < μ̄ < hi) || return "Truncated Poisson: μ̄ must be in ($lo, $hi)"
+    return nothing
+end
+
 # --- Distributions whose feasibility rules aren't encoded yet ---
 
 function _why_not_dist_from_mean_var(::Type{TriangularDist}, μ̄::Number, σ̄²::Number)
@@ -264,16 +275,23 @@ function _why_not_dist_from_mean_var(::Type{SymTriangularDist}, μ̄::Number, σ
     return _why_not_positive_var("SymTriangularDist", σ̄²)
 end
 
-function _why_not_dist_from_mean_var(::Type{DiscreteTriangular}, μ̄::Number, σ̄²::Number)
-    return "DiscreteTriangular: feasibility rule not yet implemented"
-end
-
+# DiscreteSymmetricTriangular: var = n(n+2)/6 with n ∈ ℕ₀. Solving:
+#   n = -1 + √(1 + 6σ̄²). Feasible iff μ̄ ∈ ℤ and that n is a non-negative integer.
 function _why_not_dist_from_mean_var(::Type{DiscreteSymmetricTriangular}, μ̄::Number, σ̄²::Number)
-    return "DiscreteSymmetricTriangular: feasibility rule not yet implemented"
+    r = _why_not_positive_var("DiscreteSymmetricTriangular", σ̄²); isnothing(r) || return r
+    isapprox(μ̄, round(μ̄); atol=1e-8) || return "DiscreteSymmetricTriangular: μ̄ must be an integer (got $μ̄)"
+    σ̄² ≥ 0 || return "DiscreteSymmetricTriangular: σ̄² must be ≥ 0"
+    n_raw = -1 + √(1 + 6σ̄²)
+    (isapprox(n_raw, round(n_raw); atol=1e-8) && round(n_raw) ≥ 0) ||
+        return "DiscreteSymmetricTriangular: half-width n = -1 + √(1+6σ̄²) must be a non-negative integer (got n ≈ $n_raw)"
+    return nothing
 end
 
-function _why_not_dist_from_mean_var(::Type{TruncatedPoisson}, μ̄::Number, σ̄²::Number)
-    return "TruncatedPoisson: feasibility rule not yet implemented"
+# DiscreteTriangular has 3 integer parameters and 2 moment constraints; mean+var
+# alone is underdetermined. Surface that to the user (the mean+var+mode factory
+# is the right entry point).
+function _why_not_dist_from_mean_var(::Type{DiscreteTriangular}, μ̄::Number, σ̄²::Number)
+    return "DiscreteTriangular: mean+var alone is underdetermined (3 integer params); supply `mode` as well"
 end
 
 function _why_not_dist_from_mean_var(::Type{DiscreteUniform}, μ̄::Number, σ̄²::Number)

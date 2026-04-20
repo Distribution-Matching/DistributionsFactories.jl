@@ -16,17 +16,15 @@ using Polynomials
 using Roots
 using QuadGK
 using IntervalSets
+using Random
 
-# Marker types for distributions not in Distributions.jl
-abstract type AbstractDistributionsFactoriesType <: Distribution{Univariate, Continuous} end
-
-struct FoldedNormal <: AbstractDistributionsFactoriesType end
-
-abstract type AbstractDistributionsFactoriesDiscreteType <: Distribution{Univariate, Discrete} end
-
-struct DiscreteTriangular <: AbstractDistributionsFactoriesDiscreteType end
-struct DiscreteSymmetricTriangular <: AbstractDistributionsFactoriesDiscreteType end
-struct TruncatedPoisson <: AbstractDistributionsFactoriesDiscreteType end
+# Distribution types not provided by Distributions.jl. Real
+# subtypes of `ContinuousUnivariateDistribution` / `DiscreteUnivariateDistribution`
+# with the full Distributions.jl interface — kept under `extensions/` so it's
+# clear which types we add and which are upstream.
+include("extensions/folded_normal.jl")
+include("extensions/discrete_symmetric_triangular.jl")
+include("extensions/discrete_triangular.jl")
 
 include("solvers.jl")
 include("langevin.jl")
@@ -48,7 +46,6 @@ export make_dist,
         ..,
         FoldedNormal,
         DiscreteTriangular,
-        DiscreteSymmetricTriangular,
-        TruncatedPoisson
+        DiscreteSymmetricTriangular
 
 end # end the module

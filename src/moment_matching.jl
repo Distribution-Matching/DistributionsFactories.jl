@@ -356,17 +356,16 @@ function dist_from_mean_var(::Type{Pareto}, μ̄::Number, σ̄²::Number)
     return Pareto(α, θ)
 end
 
-# TODO: needs further testing and validation
 """
     dist_from_mean_var(::Type{FoldedNormal}, μ̄, σ̄²)
 
-Numerical (2D Newton iteration). Construct the parent `Normal(μp, σp)` whose folded
-version `|X|` has mean `μ̄` and variance `σ̄²`. Requires `μ̄ > 0` and `σ̄² > 0`.
+Numerical (2D Newton iteration). Construct a `FoldedNormal(μ, σ)` distribution
+whose mean is `μ̄` and variance is `σ̄²`. Requires `μ̄ > 0` and `σ̄² > 0`.
 """
 function dist_from_mean_var(::Type{FoldedNormal}, μ̄::Number, σ̄²::Number)
     _require_dist_from_mean_var(FoldedNormal, μ̄, σ̄²)
     μp, σp = _solve_folded_normal(Float64(μ̄), Float64(σ̄²))
-    return Normal(μp, σp)  # returns the parent Normal; user takes |X|
+    return FoldedNormal(μp, σp)
 end
 
 """
@@ -419,7 +418,7 @@ function dist_from_mean_var(d::Truncated{<:Logistic}, μ̄::Number, σ̄²::Numb
 end
 
 function dist_from_mean_var(::Type{TriangularDist}, μ̄::Number, σ̄²::Number)
-    throw(ErrorException("TriangularDist: dist_from_mean_var not yet implemented"))
+    throw(ArgumentError("TriangularDist: 3 parameters and only 2 moment constraints — supply `mode` as well (use `make_dist(TriangularDist, mean=…, var=…, mode=…)`)"))
 end
 
 """
@@ -434,16 +433,59 @@ function dist_from_mean_var(::Type{SymTriangularDist}, μ̄::Number, σ̄²::Num
     return SymTriangularDist(μ̄, s)
 end
 
+"""
+    dist_from_mean_var(::Type{DiscreteTriangular}, μ̄, σ̄²)
+
+Always throws: `DiscreteTriangular` has 3 integer parameters and mean+var
+alone is underdetermined. Supply `mode` as well via
+`make_dist(DiscreteTriangular, mean=…, var=…, mode=…)`.
+"""
 function dist_from_mean_var(::Type{DiscreteTriangular}, μ̄::Number, σ̄²::Number)
-    throw(ErrorException("DiscreteTriangular: dist_from_mean_var not yet implemented"))
+    throw(ArgumentError("DiscreteTriangular: mean+var alone is underdetermined; supply `mode` as well"))
 end
 
+"""
+    dist_from_mean_var(::Type{DiscreteSymmetricTriangular}, μ̄, σ̄²)
+
+Direct formula. Construct a `DiscreteSymmetricTriangular(μ, n)` distribution.
+Requires `μ̄ ∈ ℤ` and `σ̄²` such that `n = -1 + √(1 + 6σ̄²)` is a non-negative
+integer.
+"""
 function dist_from_mean_var(::Type{DiscreteSymmetricTriangular}, μ̄::Number, σ̄²::Number)
-    throw(ErrorException("DiscreteSymmetricTriangular: dist_from_mean_var not yet implemented"))
+    _require_dist_from_mean_var(DiscreteSymmetricTriangular, μ̄, σ̄²)
+    n = round(Int, -1 + √(1 + 6σ̄²))
+    return DiscreteSymmetricTriangular(round(Int, μ̄), n)
 end
 
-function dist_from_mean_var(::Type{TruncatedPoisson}, μ̄::Number, σ̄²::Number)
-    throw(ErrorException("TruncatedPoisson: dist_from_mean_var not yet implemented"))
+"""
+    dist_from_mean_var(d::Truncated{<:Poisson}, μ̄, σ̄²)
+
+Numerical (1D root-finding). Construct a Poisson truncated to `extrema(d)` whose
+mean equals `μ̄`. Variance is then determined; if `σ̄²` deviates significantly
+from the resulting variance an `ArgumentError` is raised.
+"""
+function dist_from_mean_var(d::Truncated{<:Poisson}, μ̄::Number, σ̄²::Number)
+    lo, hi = Float64(d.lower), Float64(d.upper)
+    σ̄² > 0 || throw(DomainError(σ̄², "Poisson: σ̄² must be > 0"))
+    (lo < μ̄ < hi) || throw(DomainError(μ̄, "Truncated Poisson: μ̄ must be in ($lo, $hi)"))
+    td = _solve_truncated_poisson_mean(lo, hi, Float64(μ̄))
+    achieved_var = _truncated_poisson_moments(td.untruncated.λ, lo, hi)[2]
+    isapprox(achieved_var, σ̄²; rtol=1e-3) || throw(ArgumentError(
+        "Truncated Poisson: variance is determined by mean on [$lo, $hi]. " *
+        "Got achieved var $achieved_var, requested $σ̄²."))
+    return td
+end
+
+"""
+    dist_from_mean(d::Truncated{<:Poisson}, μ̄)
+
+Numerical (1D root-finding). Construct a Poisson truncated to `extrema(d)` whose
+mean equals `μ̄`. The Poisson rate λ is the single free parameter.
+"""
+function dist_from_mean(d::Truncated{<:Poisson}, μ̄::Number)
+    lo, hi = Float64(d.lower), Float64(d.upper)
+    (lo < μ̄ < hi) || throw(DomainError(μ̄, "Truncated Poisson: μ̄ must be in ($lo, $hi)"))
+    return _solve_truncated_poisson_mean(lo, hi, Float64(μ̄))
 end
 
 """
@@ -626,6 +668,54 @@ function dist_from_mode_quantile(::Type{Gamma}, m::Number, p::Number, q::Number)
     α = exp(sol) + 1
     θ = m / (α - 1)
     return Gamma(α, θ)
+end
+
+# --- Mean + variance + mode (3-parameter triangular families) ---
+
+function dist_from_mean_var_mode end
+
+"""
+    dist_from_mean_var_mode(::Type{TriangularDist}, μ̄, σ̄², c)
+
+Direct formula. Construct a `TriangularDist(a, b, c)` whose mean is `μ̄`,
+variance `σ̄²`, and mode `c`. Solving:
+
+    a + b = 3μ̄ - c
+    ab    = ((3μ̄ - c)² + c² - c(3μ̄ - c) - 18σ̄²) / 3
+
+with `a, b` the two roots of `t² - (a+b)t + ab = 0`. The discriminant must be
+non-negative and the resulting `a ≤ c ≤ b`.
+"""
+function dist_from_mean_var_mode(::Type{TriangularDist}, μ̄::Number, σ̄²::Number, c::Number)
+    σ̄² > 0 || throw(DomainError(σ̄², "TriangularDist: σ̄² must be > 0"))
+    S = 3μ̄ - c
+    ab = (S^2 + c^2 - c * S - 18σ̄²) / 3
+    Δ = S^2 - 4 * ab
+    Δ ≥ 0 || throw(DomainError((μ̄, σ̄², c),
+        "TriangularDist: no real (a, b) for these moments and mode (discriminant=$Δ)"))
+    a = (S - √Δ) / 2
+    b = (S + √Δ) / 2
+    (a ≤ c ≤ b) || throw(DomainError((μ̄, σ̄², c),
+        "TriangularDist: solved (a=$a, b=$b) does not satisfy a ≤ c ≤ b"))
+    return TriangularDist(a, b, c)
+end
+
+"""
+    dist_from_mean_var_mode(::Type{DiscreteTriangular}, μ̄, σ̄², c)
+
+Approximate. Solves the *continuous* triangular `(a, b)` for the requested
+moments and mode `c`, then rounds `a, b, c` to integers. The resulting
+`DiscreteTriangular(a, b, c)` will have mean and variance close to `μ̄, σ̄²`
+but generally not exactly matching them.
+"""
+function dist_from_mean_var_mode(::Type{DiscreteTriangular}, μ̄::Number, σ̄²::Number, c::Number)
+    cont = dist_from_mean_var_mode(TriangularDist, μ̄, σ̄², c)
+    a_int = round(Int, minimum(cont))
+    b_int = round(Int, maximum(cont))
+    c_int = round(Int, c)
+    a_int = min(a_int, c_int)
+    b_int = max(b_int, c_int)
+    return DiscreteTriangular(a_int, b_int, c_int)
 end
 
 function dist_from_mode_var(::Type{Gamma}, m::Number, σ̄²::Number)

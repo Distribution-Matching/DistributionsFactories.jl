@@ -16,6 +16,7 @@ include("test_dist_on_support.jl")
 include("test_dist_macro.jl")
 include("test_make_dist.jl")
 include("test_langevin.jl")
+include("test_extensions.jl")
 
 
 @testset "Mean Var tests" begin
@@ -144,6 +145,28 @@ end
     @test test_solve_beta_ratio_roundtrip()
     @test test_solve_beta_ratio_edge_cases()
     @test test_solve_beta_ratio_errors()
+end
+
+@testset "Extensions (FoldedNormal, DiscreteTriangular, Truncated{Poisson}, …)" begin
+    @test test_folded_normal_interface()
+    @test test_folded_normal_half_normal()
+    @test test_folded_normal_pdf_integrates_to_one()
+    @test test_folded_normal_factory_roundtrip()
+    @test test_folded_normal_rand_in_support()
+    @test test_dst_closed_form_moments()
+    @test test_dst_factory_feasible()
+    @test test_dst_factory_rejects_nonint_n()
+    @test test_dst_quantile_inverse_cdf()
+    @test test_disc_triangular_pmf_normalises()
+    @test test_disc_triangular_mode_is_max_pmf()
+    @test test_disc_triangular_factory_close_to_target()
+    @test test_triangular_dist_factory_exact()
+    @test test_triangular_dist_factory_asymmetric()
+    @test test_triangular_dist_factory_infeasible_mode()
+    @test test_truncated_poisson_mean_only()
+    @test test_truncated_poisson_mean_var_consistent()
+    @test test_truncated_poisson_inconsistent_var_throws()
+    @test test_truncated_poisson_mean_outside_bounds_rejected()
 end
 
 @testset "Langevin feasibility (truncated Normal/Laplace/Logistic)" begin

@@ -112,6 +112,54 @@ function _folded_normal_moments(μp::Real, σp::Real)
 end
 
 """
+    _truncated_poisson_moments(λ, lo, hi) -> (mean, var)
+
+Direct summation. `Distributions.jl` does not currently define `mean`/`var` for
+`Truncated{<:Poisson}`; we sum the (renormalised) PMF over the integer support
+in `[ceil(lo), floor(hi)]`.
+"""
+function _truncated_poisson_moments(λ::Real, lo::Real, hi::Real)
+    p = Poisson(λ)
+    lo_i = ceil(Int, lo)
+    hi_i = floor(Int, hi)
+    Z = cdf(p, hi_i) - (lo_i > 0 ? cdf(p, lo_i - 1) : 0.0)
+    Z > 0 || return (NaN, NaN)
+    m = 0.0
+    m2 = 0.0
+    for k in lo_i:hi_i
+        pk = pdf(p, k) / Z
+        m  += k * pk
+        m2 += k^2 * pk
+    end
+    return (m, m2 - m^2)
+end
+
+"""
+    _solve_truncated_poisson_mean(lo, hi, target_μ)
+
+Find Poisson rate `λ > 0` such that `truncated(Poisson(λ); lower=lo, upper=hi)`
+has mean `target_μ`. The truncated mean is monotone increasing in λ on the open
+interval `(lo, hi)`, so a 1D root-find suffices.
+"""
+function _solve_truncated_poisson_mean(lo::Real, hi::Real, target_μ::Real)
+    (lo < target_μ < hi) || throw(DomainError(target_μ, "target_μ must lie in ($lo, $hi)"))
+
+    truncated_mean(λ) = _truncated_poisson_moments(λ, lo, hi)[1]
+
+    lo_λ = max(target_μ / 4, 1e-3)
+    hi_λ = max(target_μ * 4, lo_λ + 1.0)
+    while truncated_mean(lo_λ) > target_μ && lo_λ > 1e-8
+        lo_λ /= 2
+    end
+    while truncated_mean(hi_λ) < target_μ
+        hi_λ *= 2
+    end
+
+    λ = find_zero(λ -> truncated_mean(λ) - target_μ, (lo_λ, hi_λ))
+    return truncated(Poisson(λ); lower=lo, upper=hi)
+end
+
+"""
     _solve_folded_normal(target_μ, target_var; maxiter=200, tol=1e-10)
 
 Find `(μ_parent, σ_parent)` such that `|Normal(μ_parent, σ_parent)|` has the given mean and variance.

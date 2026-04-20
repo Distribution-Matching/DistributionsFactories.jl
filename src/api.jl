@@ -61,6 +61,12 @@ struct ModeIQRSpec
     iqr::Float64
 end
 
+struct MeanVarModeSpec
+    μ̄::Float64
+    σ̄²::Float64
+    mode::Float64
+end
+
 # --- Spec parser (the only "router") ---
 
 function _moment_spec(; mean=nothing, var=nothing, std=nothing,
@@ -80,6 +86,9 @@ function _moment_spec(; mean=nothing, var=nothing, std=nothing,
     end
 
     # Mode-based specs
+    if mode !== nothing && mean !== nothing && σ̄² !== nothing
+        return MeanVarModeSpec(mean, σ̄², mode)
+    end
     if mode !== nothing && mean !== nothing && σ̄² === nothing
         return MeanModeSpec(mean, mode)
     end
@@ -156,6 +165,15 @@ moment or quantile specification. All parameters are keyword arguments.
 - `mean` alone — for 1-parameter distributions or `DistSpec`
 - `var` alone — for 1-parameter distributions or `DistSpec`
 
+# Mode-based specifications (for distributions parameterised by a mode)
+- `mode` alone — for 1-parameter mode-fixed distributions (e.g. `Rayleigh`)
+- `mean` and `mode` — for 2-parameter distributions (e.g. `Gamma`, `Beta`)
+- `mode` and `var` — for 2-parameter distributions
+- `mean`, `var`, and `mode` — for 3-parameter distributions like `TriangularDist`
+  and `DiscreteTriangular`
+- `mode` and `iqr` — for symmetric 2-parameter distributions
+- `mode` and `median` (or `q1`, `q3`) — for 2-parameter distributions
+
 # Quantile specifications
 - `median` — single quantile (1-parameter distributions)
 - `q1` and `q3` — first and third quartiles
@@ -176,6 +194,9 @@ make_dist(Exponential, median=2.0)
 make_dist(Normal, q1=10.0, q3=30.0)
 make_dist(Beta, mean=0.4, median=0.35)
 make_dist(Beta, mean=3.5, var=0.5, support=2..7)
+make_dist(TriangularDist, mean=5.0, var=2.0, mode=4.0)
+make_dist(DiscreteTriangular, mean=5.0, var=2.0, mode=5)
+make_dist(FoldedNormal, mean=2.5, var=1.2)
 make_dist(@dist(Gamma(3.0, _)), mean=5.0)
 make_dist(@dist(Logistic(2.0, _)), var=22.3)
 ```
@@ -202,6 +223,7 @@ _make_dist(D, s::MeanModeSpec) = dist_from_mean_mode(D, s.μ̄, s.mode)
 _make_dist(D, s::ModeVarSpec) = dist_from_mode_var(D, s.mode, s.σ̄²)
 _make_dist(D, s::ModeQuantileSpec) = dist_from_mode_quantile(D, s.mode, s.p, s.q)
 _make_dist(D, s::ModeIQRSpec) = dist_from_mode_iqr(D, s.mode, s.iqr)
+_make_dist(D, s::MeanVarModeSpec) = dist_from_mean_var_mode(D, s.μ̄, s.σ̄², s.mode)
 
 # --- Dispatch on spec type: quantiles ---
 
@@ -253,6 +275,18 @@ _dist_exists(D, s::MeanVarSpec)::Bool = exists_dist_from_mean_var(D, s.μ̄, s.�
 _dist_exists(D, s::MeanSpec)::Bool = true
 _dist_exists(D, s::VarSpec)::Bool = true
 
+# Mode-augmented specs: there is no generic feasibility predicate, so try the
+# constructor and return whether it succeeds. This matches the spirit of the
+# existing non-throwing predicate (`true`/`false`, never errors).
+function _dist_exists(D, s::MeanVarModeSpec)::Bool
+    try
+        dist_from_mean_var_mode(D, s.μ̄, s.σ̄², s.mode)
+        return true
+    catch
+        return false
+    end
+end
+
 function _dist_exists_on_support(D, s::MeanVarSpec, support)::Bool
     lo, hi = _support_endpoints(support)
     μ_std, σ²_std = _moments_to_standard(D, s.μ̄, s.σ̄², lo, hi)
@@ -289,7 +323,7 @@ const _SUPPORT_POSITIVE = [Gamma, Erlang, Exponential, LogNormal, Weibull, Frech
                            Chi, Chisq, Rayleigh, FDist, InverseGamma, Pareto, FoldedNormal]
 const _SUPPORT_UNIT = [Beta, Uniform]
 const _SUPPORT_INTEGER_NONNEG = [Poisson, NegativeBinomial, Geometric]
-const _SUPPORT_INTEGER_BOUNDED = [Binomial, DiscreteUniform]
+const _SUPPORT_INTEGER_BOUNDED = [Binomial, DiscreteUniform, DiscreteSymmetricTriangular]
 
 # --- Support classification from endpoints ---
 
