@@ -6,7 +6,8 @@ A Julia package for creating probability distributions parameterised by moments 
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/Ron-Ash/DistributionsFactories.jl.git")
+Pkg.add("DistributionsFactories")  # once registered, or:
+# Pkg.add(url="https://github.com/Distribution-Matching/DistributionsFactories.jl.git")
 ```
 
 ## Quick start

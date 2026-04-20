@@ -6,9 +6,18 @@ The `..` operator from [IntervalSets.jl](https://github.com/JuliaMath/IntervalSe
 
 ## Installation
 
+Once registered in the Julia General registry:
+
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/Ron-Ash/DistributionsFactories.jl.git")
+Pkg.add("DistributionsFactories")
+```
+
+Or directly from the repository:
+
+```julia
+using Pkg
+Pkg.add(url="https://github.com/Distribution-Matching/DistributionsFactories.jl.git")
 ```
 
 ## Quick start

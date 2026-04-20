@@ -16,6 +16,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/Ron-Ash/DistributionsFactories.jl.git",
+    repo = "github.com/Distribution-Matching/DistributionsFactories.jl.git",
     devbranch = "main",
 )
