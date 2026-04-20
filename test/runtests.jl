@@ -35,6 +35,10 @@ include("test_extensions.jl")
     @test test_mean_var_Poisson()
     @test test_mean_var_NegativeBinomial()
     @test test_mean_var_Binomial()
+    # These three exercise a `method=:simple_bracketing` / `:oscar_garcia` keyword
+    # API on `dist_from_mean_var(::Type{Weibull}, …)` that has not been implemented
+    # — the current Weibull factory accepts only the two positional moments.
+    # Marked broken until the alternative-method dispatch is added.
     @test_broken test_mean_var_Weibull_simple_bracketing()
     @test_broken test_mean_var_Weibull_oscar_garcia()
     @test_broken test_mean_var_Weibull_methods_agree()

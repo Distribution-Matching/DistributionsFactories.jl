@@ -672,6 +672,14 @@ end
 
 # --- Mean + variance + mode (3-parameter triangular families) ---
 
+"""
+    dist_from_mean_var_mode(D, μ̄, σ̄², mode)
+
+Construct a 3-parameter distribution from a mean, variance, and mode. Used
+by [`make_dist`](@ref) when `mean`, `var`, and `mode` are all supplied.
+Currently implemented for `TriangularDist` (continuous, exact) and
+`DiscreteTriangular` (integer, approximate).
+"""
 function dist_from_mean_var_mode end
 
 """
@@ -704,18 +712,34 @@ end
     dist_from_mean_var_mode(::Type{DiscreteTriangular}, μ̄, σ̄², c)
 
 Approximate. Solves the *continuous* triangular `(a, b)` for the requested
-moments and mode `c`, then rounds `a, b, c` to integers. The resulting
-`DiscreteTriangular(a, b, c)` will have mean and variance close to `μ̄, σ̄²`
-but generally not exactly matching them.
+moments and mode `c`, rounds to integers, then searches a ±1 neighbourhood of
+`(a, b)` to pick the integer combination whose `(mean, var)` minimise the
+squared relative error against `(μ̄, σ̄²)`. The result will have mean and
+variance close to `μ̄, σ̄²` but generally not matching exactly (3 integer
+parameters vs. 3 continuous constraints).
 """
 function dist_from_mean_var_mode(::Type{DiscreteTriangular}, μ̄::Number, σ̄²::Number, c::Number)
     cont = dist_from_mean_var_mode(TriangularDist, μ̄, σ̄², c)
-    a_int = round(Int, minimum(cont))
-    b_int = round(Int, maximum(cont))
+    a0 = round(Int, minimum(cont))
+    b0 = round(Int, maximum(cont))
     c_int = round(Int, c)
-    a_int = min(a_int, c_int)
-    b_int = max(b_int, c_int)
-    return DiscreteTriangular(a_int, b_int, c_int)
+
+    best = nothing
+    best_err = Inf
+    for da in -1:1, db in -1:1
+        a_try = min(a0 + da, c_int)
+        b_try = max(b0 + db, c_int)
+        a_try ≤ c_int ≤ b_try || continue
+        d = DiscreteTriangular(a_try, b_try, c_int)
+        # Squared relative error in mean and variance (both nonzero by feasibility).
+        err = ((mean(d) - μ̄) / max(abs(μ̄), 1.0))^2 +
+              ((var(d) - σ̄²) / max(σ̄², 1.0))^2
+        if err < best_err
+            best_err = err
+            best = d
+        end
+    end
+    return best
 end
 
 function dist_from_mode_var(::Type{Gamma}, m::Number, σ̄²::Number)

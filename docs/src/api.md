@@ -12,6 +12,18 @@ fixed_params
 free_params
 ```
 
+## Extension distribution types
+
+These are defined in this package because they are not part of `Distributions.jl`,
+and they implement the full Distributions.jl interface (`pdf`, `cdf`,
+`quantile`, `mean`, `var`, `rand`, …).
+
+```@docs
+FoldedNormal
+DiscreteSymmetricTriangular
+DiscreteTriangular
+```
+
 ## Internal functions
 
 These are not exported but can be accessed via `DistributionsFactories.func_name(...)`.
@@ -23,6 +35,7 @@ DistributionsFactories.dist_from_var
 DistributionsFactories.dist_from_quantile
 DistributionsFactories.dist_from_quantiles
 DistributionsFactories.dist_from_mean_quantile
+DistributionsFactories.dist_from_mean_var_mode
 DistributionsFactories.exists_dist_from_mean_var
 DistributionsFactories.dist_from_mean_var_on_support
 ```

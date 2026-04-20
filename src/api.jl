@@ -275,17 +275,20 @@ _dist_exists(D, s::MeanVarSpec)::Bool = exists_dist_from_mean_var(D, s.μ̄, s.�
 _dist_exists(D, s::MeanSpec)::Bool = true
 _dist_exists(D, s::VarSpec)::Bool = true
 
-# Mode-augmented specs: there is no generic feasibility predicate, so try the
-# constructor and return whether it succeeds. This matches the spirit of the
-# existing non-throwing predicate (`true`/`false`, never errors).
-function _dist_exists(D, s::MeanVarModeSpec)::Bool
-    try
-        dist_from_mean_var_mode(D, s.μ̄, s.σ̄², s.mode)
-        return true
-    catch
-        return false
-    end
-end
+# Mode- and quantile-augmented specs: there is no generic feasibility predicate,
+# so try the constructor and return whether it succeeds. This matches the spirit
+# of the existing non-throwing predicate (`true`/`false`, never errors).
+_try_construct(f, args...) = try; f(args...); true; catch; false; end
+
+_dist_exists(D, s::MeanVarModeSpec)::Bool = _try_construct(dist_from_mean_var_mode, D, s.μ̄, s.σ̄², s.mode)
+_dist_exists(D, s::MeanModeSpec)::Bool    = _try_construct(dist_from_mean_mode, D, s.μ̄, s.mode)
+_dist_exists(D, s::ModeVarSpec)::Bool     = _try_construct(dist_from_mode_var, D, s.mode, s.σ̄²)
+_dist_exists(D, s::ModeQuantileSpec)::Bool = _try_construct(dist_from_mode_quantile, D, s.mode, s.p, s.q)
+_dist_exists(D, s::ModeIQRSpec)::Bool     = _try_construct(dist_from_mode_iqr, D, s.mode, s.iqr)
+_dist_exists(D, s::ModeSpec)::Bool        = _try_construct(dist_from_mode, D, s.mode)
+_dist_exists(D, s::QuantileSpec)::Bool    = _try_construct(dist_from_quantile, D, s.p, s.q)
+_dist_exists(D, s::TwoQuantileSpec)::Bool = _try_construct(dist_from_quantiles, D, s.p1, s.q1, s.p2, s.q2)
+_dist_exists(D, s::MeanQuantileSpec)::Bool = _try_construct(dist_from_mean_quantile, D, s.μ̄, s.p, s.q)
 
 function _dist_exists_on_support(D, s::MeanVarSpec, support)::Bool
     lo, hi = _support_endpoints(support)

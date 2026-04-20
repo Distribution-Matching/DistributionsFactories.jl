@@ -19,7 +19,7 @@
 | 13 | Frechet | [0, Inf) | 2 | Yes | Numerical (root-finding) | Beta-ratio equation |
 | 14 | F distribution | [0, Inf) | 2 | Yes | Direct formula | Requires 1 < mean < 2 |
 | 15 | Inverse Gamma | [0, Inf) | 2 | Yes | Direct formula | |
-| 16 | Folded Normal | [0, Inf) | 1 | Yes | Numerical (2D Newton) | Returns parent Normal |
+| 16 | Folded Normal | [0, Inf) | 2 | Yes | Numerical (2D Newton) | Custom `FoldedNormal(μ, σ)` type — see [Extension distributions](#extension-distributions) |
 | 17 | Pareto | [0, Inf) | 1 | Yes | Direct formula | |
 | 18 | Chi | [0, Inf) | 1 | Yes | Direct formula | |
 | 19 | Rayleigh | [0, Inf) | 1 | Yes | Direct formula | Special case of Chi; 1 free parameter |
@@ -29,7 +29,7 @@
 | 23 | Beta | [0, 1] | 2 | Yes | Direct formula | |
 | 24 | Uniform | [0, 1] | 0 | Yes | Direct formula | Adjusts support |
 | 25 | Symmetric Triangular | [0, 1] | 0 | Yes | Direct formula | Type `SymTriangularDist`; adjusts support |
-| 26 | Triangular | [0, 1] | 1 | No | | |
+| 26 | Triangular | ℝ | 3 | Yes (mean+var+mode) | Direct formula | `TriangularDist(a, b, c)` — supply mode in addition to mean/var |
 | 27 | Doubly-truncated Normal | [0, 1] | 2 | No | | |
 | 28 | Doubly-truncated Laplace | [0, 1] | 2 | No | | |
 | 29 | Doubly-truncated Logistic | [0, 1] | 2 | No | | |
@@ -43,9 +43,59 @@
 | 32 | Negative Binomial | {0, 1, 2, ...} | 2 | Yes | Direct formula | |
 | 33 | Geometric | {0, 1, 2, ...} | 1 | Yes | Direct formula | Special case of Neg. Binomial; 1 free parameter |
 | 34 | Poisson | {0, 1, 2, ...} | 1 | Yes | Direct formula | 1 free parameter |
-| 35 | Discrete Triangular | {0, ..., n} | 1 | No | | |
-| 36 | Discrete Sym. Triangular | {0, ..., n} | 0 | No | | |
-| 37 | Truncated Poisson | {0, ..., n} | 1 | No | | |
+| 35 | Discrete Triangular | {a, ..., b} | 3 | Yes (mean+var+mode) | Approx. (continuous solve + integer search) | Custom `DiscreteTriangular(a, b, c)` type |
+| 36 | Discrete Sym. Triangular | {μ-n, ..., μ+n} | 2 | Yes | Direct formula | Custom `DiscreteSymmetricTriangular(μ, n)` type |
+| 37 | Truncated Poisson | {a, ..., b} | 1 | Yes | Numerical (1D root-find) | Use `truncated(Poisson(0); lower=a, upper=b)` as template |
+
+## Extension distributions
+
+The following types are defined in `src/extensions/` because they are *not*
+provided by `Distributions.jl`. They implement the full Distributions.jl
+interface (`pdf`, `logpdf`, `cdf`, `quantile`, `mean`, `var`, `rand`,
+`support`, `params`) and behave as first-class distributions.
+
+### `FoldedNormal(μ, σ)`
+
+The distribution of `|X|` where `X ~ Normal(μ, σ)`. Support `[0, ∞)`.
+Setting `μ = 0` recovers the half-normal.
+
+```julia
+d = FoldedNormal(2.0, 1.0)
+mean(d), var(d)             # 2.0170, 0.9318
+make_dist(FoldedNormal, mean=2.5, var=1.2)
+```
+
+### `DiscreteSymmetricTriangular(μ, n)`
+
+Integer-valued symmetric triangular on `{μ-n, …, μ+n}` with PMF
+`P(μ + k) = (n + 1 − |k|) / (n + 1)²`. Closed-form `mean = μ`,
+`var = n(n+2)/6`.
+
+```julia
+make_dist(DiscreteSymmetricTriangular, mean=4, var=2.5)
+```
+
+### `DiscreteTriangular(a, b, c)`
+
+Integer-valued asymmetric triangular on `{a, …, b}` with mode `c`. PMF is
+two linear ramps meeting at `c`. The factory needs `mode` in addition to
+`mean` and `var`:
+
+```julia
+make_dist(DiscreteTriangular, mean=5.0, var=2.0, mode=5)
+```
+
+## Truncated Poisson
+
+`Distributions.jl` already provides `truncated(Poisson(λ); lower=a, upper=b)`;
+the factory follows the same template-instance pattern as the truncated
+Normal/Laplace/Logistic constructors:
+
+```julia
+template = truncated(Poisson(0.0); lower=0, upper=10)
+make_dist(template, mean=3.0, var=v)            # var must be consistent
+DistributionsFactories.dist_from_mean(template, 3.0)  # mean-only path
+```
 
 ## Experimental / work in progress
 
