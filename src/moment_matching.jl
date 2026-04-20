@@ -380,41 +380,57 @@ function dist_from_mean_var(::Type{Geometric}, μ̄::Number, σ̄²::Number)
     return Geometric(p)
 end
 
-# TODO: truncated distributions need further testing and validation
+# Routes the truncated location-scale factory to the right solver based on
+# whether bounds are finite. Two-sided uses the standardize-to-[-0.5, 0.5]
+# unit solver; one-sided uses the standardize-to-[0, ∞) half-truncated
+# solver. See `solvers.jl` for the canonical solver kernels.
+function _dispatch_truncated_locscale_factory(::Type{D}, lo::Real, hi::Real,
+                                              μ̄::Number, σ̄²::Number) where {D<:Distribution}
+    if isfinite(lo) && isfinite(hi)
+        return _solve_truncated_mean_var(D, lo, hi, Float64(μ̄), Float64(σ̄²))
+    elseif isfinite(lo) && !isfinite(hi)
+        return _solve_truncated_half_below(D, lo, Float64(μ̄), Float64(σ̄²))
+    elseif !isfinite(lo) && isfinite(hi)
+        return _solve_truncated_half_above(D, hi, Float64(μ̄), Float64(σ̄²))
+    else
+        # Both infinite: no truncation; fall back to the untruncated factory.
+        return dist_from_mean_var(D, μ̄, σ̄²)
+    end
+end
+
 """
     dist_from_mean_var(d::Truncated{<:Normal}, μ̄, σ̄²)
 
-Numerical (2D Newton iteration). Construct a truncated Normal on `[lo, hi]`
-(taken from `d`) with mean `μ̄` and variance `σ̄²`. Uses quadrature for moments.
+Numerical. Construct a truncated Normal on `extrema(d)` with the given
+moments. Two-sided uses the standardize-to-`[-0.5, 0.5]` 2D Newton solver;
+one-sided uses the standardize-to-`[0, ∞)` half-truncated solver.
 """
 function dist_from_mean_var(d::Truncated{<:Normal}, μ̄::Number, σ̄²::Number)
     _require_dist_from_mean_var(d, μ̄, σ̄²)
     lo, hi = extrema(d)
-    return _solve_truncated_mean_var(Normal, lo, hi, Float64(μ̄), Float64(σ̄²))
+    return _dispatch_truncated_locscale_factory(Normal, lo, hi, μ̄, σ̄²)
 end
 
 """
     dist_from_mean_var(d::Truncated{<:Laplace}, μ̄, σ̄²)
 
-Numerical (2D Newton iteration). Construct a truncated Laplace on `[lo, hi]`
-(taken from `d`) with mean `μ̄` and variance `σ̄²`. Uses quadrature for moments.
+Numerical. As for `Truncated{<:Normal}`.
 """
 function dist_from_mean_var(d::Truncated{<:Laplace}, μ̄::Number, σ̄²::Number)
     _require_dist_from_mean_var(d, μ̄, σ̄²)
     lo, hi = extrema(d)
-    return _solve_truncated_mean_var(Laplace, lo, hi, Float64(μ̄), Float64(σ̄²))
+    return _dispatch_truncated_locscale_factory(Laplace, lo, hi, μ̄, σ̄²)
 end
 
 """
     dist_from_mean_var(d::Truncated{<:Logistic}, μ̄, σ̄²)
 
-Numerical (2D Newton iteration). Construct a truncated Logistic on `[lo, hi]`
-(taken from `d`) with mean `μ̄` and variance `σ̄²`. Uses quadrature for moments.
+Numerical. As for `Truncated{<:Normal}`.
 """
 function dist_from_mean_var(d::Truncated{<:Logistic}, μ̄::Number, σ̄²::Number)
     _require_dist_from_mean_var(d, μ̄, σ̄²)
     lo, hi = extrema(d)
-    return _solve_truncated_mean_var(Logistic, lo, hi, Float64(μ̄), Float64(σ̄²))
+    return _dispatch_truncated_locscale_factory(Logistic, lo, hi, μ̄, σ̄²)
 end
 
 function dist_from_mean_var(::Type{TriangularDist}, μ̄::Number, σ̄²::Number)

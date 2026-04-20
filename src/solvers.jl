@@ -110,6 +110,118 @@ end
 const _TruncLocScale = Union{Normal, Laplace, Logistic}
 
 """
+    _solve_truncated_half_below_unit(D, target_z; maxiter=200, tol=1e-10)
+
+Canonical half-truncated solver. Find `(μp, σp)` such that
+`truncated(D(μp, σp), 0, Inf)` has mean `target_z` and variance 1.
+Used as the inner kernel by the lower- and upper-half-truncated factories
+after standardization. `target_z` must be > 1 (the exponential-tail bound).
+"""
+function _solve_truncated_half_below_unit(::Type{D}, target_z::Real;
+                                          maxiter::Int = 200, tol::Real = 1e-10
+                                          ) where {D<:_TruncLocScale}
+    target_z > 1 || throw(DomainError(target_z,
+        "standardized mean z = (μ̄-lo)/σ̄ must be > 1 (exponential-tail bound)"))
+
+    # Initial guess: parent at the truncation point with std 1 (≈ half-D).
+    x = [0.0, 0.0]   # (μp, log σp)
+    h = 1e-7
+
+    function residual(μp, logσ)
+        σp = exp(logσ)
+        d = truncated(D(μp, σp), 0.0, Inf)
+        # Use a finite upper cap matched to (μp, σp) for quadrature stability.
+        # 50σ above max(0, μp) captures all but ~10⁻³⁰⁰ of an exponential tail.
+        upper = max(0.0, μp) + 50 * σp
+        m, _  = quadgk(x -> x   * pdf(d, x), 0.0, upper; rtol=1e-10)
+        m2, _ = quadgk(x -> x^2 * pdf(d, x), 0.0, upper; rtol=1e-10)
+        return [m - target_z, m2 - m^2 - 1.0]
+    end
+
+    converged = false
+    for _ in 1:maxiter
+        F = residual(x[1], x[2])
+        if maximum(abs.(F)) < tol
+            converged = true
+            break
+        end
+
+        J = zeros(2, 2)
+        for j in 1:2
+            xp = copy(x); xp[j] += h
+            Fp = residual(xp[1], xp[2])
+            J[:, j] = (Fp - F) / h
+        end
+        dx = J \ (-F)
+
+        step = 1.0
+        for _ in 1:20
+            x_new = x + step * dx
+            try
+                F_new = residual(x_new[1], x_new[2])
+                if maximum(abs.(F_new)) < maximum(abs.(F))
+                    break
+                end
+            catch
+            end
+            step *= 0.5
+        end
+        x .+= step * dx
+    end
+
+    converged || throw(ErrorException(
+        "_solve_truncated_half_below_unit: did not converge for D=$D after " *
+        "$maxiter iterations (target z=$target_z)"))
+
+    return x[1], exp(x[2])
+end
+
+"""
+    _solve_truncated_half_below(D, lo, target_μ, target_var)
+
+Solve the half-truncated problem on `[lo, ∞)`: find `(μp, σp)` such that
+`truncated(D(μp, σp), lo, Inf)` has mean `target_μ` and variance `target_var`.
+Standardizes to the canonical interval `[0, ∞)` with `(μ̄ - lo)/σ̄, 1`,
+calls [`_solve_truncated_half_below_unit`](@ref), then un-standardizes.
+"""
+function _solve_truncated_half_below(::Type{D}, lo::Real,
+                                     target_μ::Real, target_var::Real;
+                                     maxiter::Int = 200, tol::Real = 1e-10
+                                     ) where {D<:_TruncLocScale}
+    σ̄ = √target_var
+    z = (target_μ - lo) / σ̄
+    # Boundary attainment for Laplace: σ̄ = (μ̄ - lo) gives exact Exponential.
+    # Pick the canonical boundary parent Laplace(lo, σ̄) directly.
+    if D <: Laplace && z ≤ 1 + 1e-8
+        return truncated(Laplace(lo, σ̄), lo, Inf)
+    end
+    μp_std, σp_std = _solve_truncated_half_below_unit(D, z;
+                                                      maxiter=maxiter, tol=tol)
+    μp = lo + σ̄ * μp_std
+    σp = σ̄ * σp_std
+    return truncated(D(μp, σp), lo, Inf)
+end
+
+"""
+    _solve_truncated_half_above(D, hi, target_μ, target_var)
+
+Solve `(-∞, hi]` by reflection: the right-flipped problem is half-below at
+`-hi` with mean `-target_μ`. Returns the reflected truncated distribution.
+"""
+function _solve_truncated_half_above(::Type{D}, hi::Real,
+                                     target_μ::Real, target_var::Real;
+                                     maxiter::Int = 200, tol::Real = 1e-10
+                                     ) where {D<:_TruncLocScale}
+    # Reflect: if Y = -X then truncated(D(μp, σp), -∞, hi) on X corresponds to
+    # truncated(D(-μp, σp), -hi, ∞) on Y. (Normal/Laplace/Logistic are all
+    # symmetric, so reflecting the parent location works.)
+    d_reflected = _solve_truncated_half_below(D, -hi, -target_μ, target_var;
+                                              maxiter=maxiter, tol=tol)
+    μp_ref, σp_ref = params(d_reflected.untruncated)
+    return truncated(D(-μp_ref, σp_ref), -Inf, hi)
+end
+
+"""
     _solve_truncated_mean_var(D, lo, hi, target_μ, target_var; maxiter=200, tol=1e-10)
 
 Standardize-and-solve for location-scale families (Normal, Laplace, Logistic).

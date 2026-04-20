@@ -201,5 +201,8 @@ end
     @test test_truncated_normal_constructor_roundtrip()
     @test test_truncated_laplace_constructor_roundtrip()
     @test test_truncated_logistic_constructor_roundtrip()
+    @test test_half_trunc_normal_constructor()
+    @test test_half_trunc_laplace_constructor()
+    @test test_half_trunc_logistic_constructor()
 end
 

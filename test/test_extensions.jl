@@ -213,11 +213,17 @@ function test_half_trunc_laplace_logistic()
     for D in (Laplace, Logistic)
         d_lo = truncated(D(); lower=0)
         d_hi = truncated(D(); upper=0)
-        exists_dist_from_mean_var(d_lo,  2.0, 1.0)  || return false
-        exists_dist_from_mean_var(d_lo,  2.0, 4.0)  && return false   # CV=1 boundary
-        exists_dist_from_mean_var(d_hi, -2.0, 1.0)  || return false
-        exists_dist_from_mean_var(d_hi, -2.0, 4.0)  && return false
+        exists_dist_from_mean_var(d_lo,  2.0, 1.0) || return false
+        exists_dist_from_mean_var(d_hi, -2.0, 1.0) || return false
+        # Above the bound: definitely infeasible for both
+        exists_dist_from_mean_var(d_lo,  2.0, 5.0) && return false
+        exists_dist_from_mean_var(d_hi, -2.0, 5.0) && return false
     end
+    # Boundary semantics differ between the two families:
+    # - Laplace attains σ̄² = gap² exactly (parent μp ≤ lo gives Exponential)
+    # - Logistic only approaches it asymptotically
+    exists_dist_from_mean_var(truncated(Laplace();  lower=0), 2.0, 4.0)  || return false
+    exists_dist_from_mean_var(truncated(Logistic(); lower=0), 2.0, 4.0)  && return false
     return true
 end
 

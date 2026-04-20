@@ -269,9 +269,23 @@ end
 function _why_not_dist_from_mean_var(d::Truncated{<:Laplace}, μ̄::Number, σ̄²::Number)
     r = _why_not_positive_var("Laplace", σ̄²); isnothing(r) || return r
     lo, hi = extrema(d)
-    return isfinite(lo) && isfinite(hi) ?
-        _why_not_truncexp_envelope("Laplace", lo, hi, μ̄, σ̄²) :
-        _why_not_half_trunc_exp_envelope("Laplace", lo, hi, μ̄, σ̄²)
+    if isfinite(lo) && isfinite(hi)
+        return _why_not_truncexp_envelope("Laplace", lo, hi, μ̄, σ̄²)
+    end
+    # Half-truncated Laplace: the boundary σ̄² = gap² is *attained* (not just
+    # approached) by parents with μp ≤ lo (resp. ≥ hi), where the truncated
+    # distribution is exactly an Exponential. Allow equality with a small
+    # numerical tolerance.
+    if isfinite(lo) && !isfinite(hi)
+        μ̄ > lo || return "Truncated Laplace: μ̄ must be > lo=$lo"
+        gap = μ̄ - lo
+        σ̄² ≤ gap^2 * (1 + 1e-10) || return "Truncated Laplace on [$lo, ∞): σ̄² must be ≤ (μ̄ - lo)² = $(gap^2) (exponential bound, attained)"
+    elseif !isfinite(lo) && isfinite(hi)
+        μ̄ < hi || return "Truncated Laplace: μ̄ must be < hi=$hi"
+        gap = hi - μ̄
+        σ̄² ≤ gap^2 * (1 + 1e-10) || return "Truncated Laplace on (-∞, $hi]: σ̄² must be ≤ (hi - μ̄)² = $(gap^2) (exponential bound, attained)"
+    end
+    return nothing
 end
 
 function _why_not_dist_from_mean_var(d::Truncated{<:Logistic}, μ̄::Number, σ̄²::Number)

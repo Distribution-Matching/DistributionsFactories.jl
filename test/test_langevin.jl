@@ -264,6 +264,82 @@ function test_truncated_logistic_constructor_roundtrip()
                                           ((-0.5, 0.5), (0.0, 1.0), (-2.0, 3.0)))
 end
 
+# --- Half-truncated constructor roundtrip ---
+
+# Quadrature on a half-line. We cap at 50σp from the parent mode for stability;
+# all three families have at most exponential right tails so the residual is
+# negligible.
+function _half_truncated_moments(parent, lo, hi)
+    if isfinite(lo) && !isfinite(hi)
+        upper = lo + 50 * std(parent) + abs(mean(parent)) + 50
+        Z, _ = quadgk(x -> pdf(parent, x), lo, upper; rtol=1e-10)
+        Z > 1e-12 || return (NaN, NaN)
+        m,  _ = quadgk(x -> x   * pdf(parent, x), lo, upper; rtol=1e-10)
+        m2, _ = quadgk(x -> x^2 * pdf(parent, x), lo, upper; rtol=1e-10)
+        μ = m / Z; v = m2/Z - μ^2
+        return (μ, v)
+    elseif !isfinite(lo) && isfinite(hi)
+        lower = hi - 50 * std(parent) - abs(mean(parent)) - 50
+        Z, _ = quadgk(x -> pdf(parent, x), lower, hi; rtol=1e-10)
+        Z > 1e-12 || return (NaN, NaN)
+        m,  _ = quadgk(x -> x   * pdf(parent, x), lower, hi; rtol=1e-10)
+        m2, _ = quadgk(x -> x^2 * pdf(parent, x), lower, hi; rtol=1e-10)
+        μ = m / Z; v = m2/Z - μ^2
+        return (μ, v)
+    end
+    error("expected exactly one infinite bound")
+end
+
+function _half_constructor_roundtrip(D, parents, bounds; atol=1e-6, rtol=1e-6)
+    for parent in parents
+        for (lo, hi) in bounds
+            mass = (isfinite(hi) ? cdf(parent, hi) : 1.0) -
+                   (isfinite(lo) ? cdf(parent, lo) : 0.0)
+            mass ≥ 0.05 || continue
+
+            μ̄, σ̄² = _half_truncated_moments(parent, lo, hi)
+            (isfinite(μ̄) && isfinite(σ̄²) && σ̄² > 0) || continue
+
+            template = if isfinite(lo)
+                truncated(D(); lower=lo)
+            else
+                truncated(D(); upper=hi)
+            end
+
+            d_recovered = dist_from_mean_var(template, μ̄, σ̄²)
+            μ_back, σ²_back = _half_truncated_moments(d_recovered.untruncated, lo, hi)
+            if !isapprox(μ_back, μ̄; atol=atol, rtol=rtol) ||
+               !isapprox(σ²_back, σ̄²; atol=atol, rtol=rtol)
+                @info "half-trunc constructor mismatch" D parent lo hi μ̄ σ̄² μ_back σ²_back
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function test_half_trunc_normal_constructor()
+    parents = [Normal(μ, σ) for μ in (-2.0, -0.5, 0.0, 0.5, 2.0)
+                            for σ in (0.3, 1.0, 3.0)]
+    bounds = [(0.0, Inf), (-1.0, Inf), (1.0, Inf), (-Inf, 0.0), (-Inf, 1.0)]
+    return _half_constructor_roundtrip(Normal, parents, bounds)
+end
+
+function test_half_trunc_laplace_constructor()
+    # Avoid the boundary case (Laplace μp ≤ lo gives the Exponential limit
+    # exactly, where the parent is non-unique). Use parents safely above.
+    parents = [Laplace(μ, θ) for μ in (0.5, 1.0, 2.0) for θ in (0.3, 1.0, 3.0)]
+    bounds = [(0.0, Inf), (-Inf, 5.0)]
+    return _half_constructor_roundtrip(Laplace, parents, bounds)
+end
+
+function test_half_trunc_logistic_constructor()
+    parents = [Logistic(μ, s) for μ in (-1.0, -0.25, 0.5, 1.5)
+                              for s in (0.3, 1.0, 2.0)]
+    bounds = [(0.0, Inf), (-Inf, 0.0)]
+    return _half_constructor_roundtrip(Logistic, parents, bounds)
+end
+
 function test_truncated_families_margin_from_dome()
     # Pick a middle-of-the-road parent per family, away from the degenerate /
     # saturated regimes where the distribution is effectively a point mass or
