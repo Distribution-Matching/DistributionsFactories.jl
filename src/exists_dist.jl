@@ -237,22 +237,79 @@ function _why_not_truncexp_envelope(name::AbstractString, lo::Real, hi::Real,
     return nothing
 end
 
+# Half-truncated location-scale families with exponential-decay tails
+# (Normal/Laplace/Logistic) on [lo, ∞) or (-∞, hi] reach an Exponential as the
+# parent location is pushed to ∓∞. The right tail of an Exponential has
+# CV = 1, so the feasibility region is σ̄² < (μ̄ - lo)² (resp. (hi - μ̄)²).
+# See `exploration/feasible_half_truncated.jl` for the empirical confirmation
+# and `report.tex` for the derivation.
+function _why_not_half_trunc_exp_envelope(name::AbstractString,
+                                          lo::Real, hi::Real,
+                                          μ̄::Real, σ̄²::Real)
+    if isfinite(lo) && !isfinite(hi)            # half-truncated below
+        μ̄ > lo || return "Truncated $name: μ̄ must be > lo=$lo"
+        gap = μ̄ - lo
+        σ̄² < gap^2 || return "Truncated $name on [$lo, ∞): σ̄² must be < (μ̄ - lo)² = $(gap^2) (exponential-tail bound)"
+    elseif !isfinite(lo) && isfinite(hi)        # half-truncated above
+        μ̄ < hi || return "Truncated $name: μ̄ must be < hi=$hi"
+        gap = hi - μ̄
+        σ̄² < gap^2 || return "Truncated $name on (-∞, $hi]: σ̄² must be < (hi - μ̄)² = $(gap^2) (exponential-tail bound)"
+    end
+    return nothing
+end
+
 function _why_not_dist_from_mean_var(d::Truncated{<:Normal}, μ̄::Number, σ̄²::Number)
     r = _why_not_positive_var("Normal", σ̄²); isnothing(r) || return r
     lo, hi = extrema(d)
-    return _why_not_truncexp_envelope("Normal", lo, hi, μ̄, σ̄²)
+    return isfinite(lo) && isfinite(hi) ?
+        _why_not_truncexp_envelope("Normal", lo, hi, μ̄, σ̄²) :
+        _why_not_half_trunc_exp_envelope("Normal", lo, hi, μ̄, σ̄²)
 end
 
 function _why_not_dist_from_mean_var(d::Truncated{<:Laplace}, μ̄::Number, σ̄²::Number)
     r = _why_not_positive_var("Laplace", σ̄²); isnothing(r) || return r
     lo, hi = extrema(d)
-    return _why_not_truncexp_envelope("Laplace", lo, hi, μ̄, σ̄²)
+    return isfinite(lo) && isfinite(hi) ?
+        _why_not_truncexp_envelope("Laplace", lo, hi, μ̄, σ̄²) :
+        _why_not_half_trunc_exp_envelope("Laplace", lo, hi, μ̄, σ̄²)
 end
 
 function _why_not_dist_from_mean_var(d::Truncated{<:Logistic}, μ̄::Number, σ̄²::Number)
     r = _why_not_positive_var("Logistic", σ̄²); isnothing(r) || return r
     lo, hi = extrema(d)
-    return _why_not_truncexp_envelope("Logistic", lo, hi, μ̄, σ̄²)
+    return isfinite(lo) && isfinite(hi) ?
+        _why_not_truncexp_envelope("Logistic", lo, hi, μ̄, σ̄²) :
+        _why_not_half_trunc_exp_envelope("Logistic", lo, hi, μ̄, σ̄²)
+end
+
+# Half-truncated Student-t on [lo, ∞) or (-∞, hi]. The right tail of t_ν is
+# Pareto-like with tail index ν; pushing the parent location to ∓∞ leaves a
+# Pareto whose CV is √(ν/(ν-2)) for ν > 2. So the feasibility region is
+# σ̄² < ν/(ν-2) · (μ̄ - lo)² (resp. (hi - μ̄)²); infeasible for ν ≤ 2.
+# See `exploration/feasible_half_truncated_t_ceiling.{jl,pdf}`.
+function _why_not_dist_from_mean_var(d::Truncated{<:TDist}, μ̄::Number, σ̄²::Number)
+    r = _why_not_positive_var("TDist", σ̄²); isnothing(r) || return r
+    ν = dof(d.untruncated)
+    ν > 2 || return "Truncated TDist: requires ν > 2 for variance to exist (got ν=$ν)"
+    lo, hi = extrema(d)
+    if isfinite(lo) && isfinite(hi)
+        # Two-sided: defer to the doubly-truncated polynomial-tail dome
+        # (not yet implemented as a feasibility predicate). Fall back to the
+        # universal Bhatia–Davis ceiling, which is loose but correct.
+        σ̄² < (hi - μ̄) * (μ̄ - lo) || return "Truncated TDist on [$lo, $hi]: σ̄² must be < (hi-μ̄)(μ̄-lo) (Bhatia–Davis universal bound; tight Pareto-tail dome not yet implemented)"
+        return nothing
+    end
+    cap = ν / (ν - 2)
+    if isfinite(lo) && !isfinite(hi)
+        μ̄ > lo || return "Truncated TDist: μ̄ must be > lo=$lo"
+        gap = μ̄ - lo
+        σ̄² < cap * gap^2 || return "Truncated TDist on [$lo, ∞) with ν=$ν: σ̄² must be < ν/(ν-2)·(μ̄-lo)² = $(cap*gap^2) (Pareto-tail bound)"
+    elseif !isfinite(lo) && isfinite(hi)
+        μ̄ < hi || return "Truncated TDist: μ̄ must be < hi=$hi"
+        gap = hi - μ̄
+        σ̄² < cap * gap^2 || return "Truncated TDist on (-∞, $hi] with ν=$ν: σ̄² must be < ν/(ν-2)·(hi-μ̄)² = $(cap*gap^2) (Pareto-tail bound)"
+    end
+    return nothing
 end
 
 # Truncated Poisson has only λ as a free parameter. Mean+var is overdetermined;

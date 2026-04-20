@@ -172,3 +172,91 @@ function test_truncated_poisson_mean_outside_bounds_rejected()
     return !exists_dist_from_mean_var(template, 1.0, 1.0) &&
            !exists_dist_from_mean_var(template, 9.0, 1.0)
 end
+
+# --- Half-truncated feasibility (exponential-tail families) -----------------
+
+function test_half_trunc_normal_lower_feasible()
+    d = truncated(Normal(0,1); lower=0)         # support [0, ∞)
+    # σ̄² < (μ̄ - 0)² = μ̄² should be accepted
+    exists_dist_from_mean_var(d, 2.0, 1.0)  || return false   # CV = 0.5 ✓
+    exists_dist_from_mean_var(d, 5.0, 4.0)  || return false   # CV = 0.4 ✓
+    return true
+end
+
+function test_half_trunc_normal_lower_above_bound_rejected()
+    d = truncated(Normal(0,1); lower=0)
+    # σ̄² ≥ μ̄² should be rejected (CV ≥ 1)
+    exists_dist_from_mean_var(d, 2.0, 4.0)  && return false   # CV = 1
+    exists_dist_from_mean_var(d, 2.0, 5.0)  && return false   # CV > 1
+    return true
+end
+
+function test_half_trunc_normal_lower_with_offset()
+    d = truncated(Normal(0,1); lower=3)         # support [3, ∞)
+    # Bound becomes σ̄² < (μ̄ - 3)²
+    exists_dist_from_mean_var(d, 5.0, 3.0) || return false    # 3 < 4 ✓
+    exists_dist_from_mean_var(d, 5.0, 5.0) && return false    # 5 ≥ 4 ✗
+    exists_dist_from_mean_var(d, 2.5, 1.0) && return false    # μ̄ < lo
+    return true
+end
+
+function test_half_trunc_normal_upper_feasible()
+    d = truncated(Normal(0,1); upper=0)         # support (-∞, 0]
+    # σ̄² < (0 - μ̄)² = μ̄²
+    exists_dist_from_mean_var(d, -2.0, 1.0) || return false   # gap=2, var<4 ✓
+    exists_dist_from_mean_var(d, -2.0, 4.0) && return false   # var = gap² ✗
+    exists_dist_from_mean_var(d,  1.0, 1.0) && return false   # μ̄ > hi
+    return true
+end
+
+function test_half_trunc_laplace_logistic()
+    for D in (Laplace, Logistic)
+        d_lo = truncated(D(); lower=0)
+        d_hi = truncated(D(); upper=0)
+        exists_dist_from_mean_var(d_lo,  2.0, 1.0)  || return false
+        exists_dist_from_mean_var(d_lo,  2.0, 4.0)  && return false   # CV=1 boundary
+        exists_dist_from_mean_var(d_hi, -2.0, 1.0)  || return false
+        exists_dist_from_mean_var(d_hi, -2.0, 4.0)  && return false
+    end
+    return true
+end
+
+function test_half_trunc_locscale_two_sided_still_uses_dome()
+    # Make sure adding the half-truncated branch didn't break the existing
+    # two-sided Langevin envelope.
+    d = truncated(Normal(0,1); lower=-0.5, upper=0.5)
+    return exists_dist_from_mean_var(d, 0.0, 0.05) &&        # inside dome
+           !exists_dist_from_mean_var(d, 0.0, 0.5)           # above dome
+end
+
+# --- Truncated Student-t feasibility ---------------------------------------
+
+function test_trunc_tdist_low_dof_rejected()
+    d = truncated(TDist(2.0); lower=0)          # variance undefined for ν ≤ 2
+    return !exists_dist_from_mean_var(d, 1.0, 1.0)
+end
+
+function test_trunc_tdist_pareto_bound()
+    # ν = 4: ceiling is √(ν/(ν-2)) = √2 ≈ 1.414
+    d = truncated(TDist(4.0); lower=0)
+    # σ̄² < ν/(ν-2)·μ̄² = 2·μ̄²
+    exists_dist_from_mean_var(d, 2.0, 7.5) || return false   # 7.5 < 8 ✓
+    exists_dist_from_mean_var(d, 2.0, 8.5) && return false   # 8.5 > 8 ✗
+    return true
+end
+
+function test_trunc_tdist_recovers_normal_limit()
+    # Large ν → exponential-tail bound (CV → 1)
+    d = truncated(TDist(1000.0); lower=0)
+    exists_dist_from_mean_var(d, 2.0, 3.9) || return false    # well below μ̄²
+    exists_dist_from_mean_var(d, 2.0, 4.1) && return false    # just above
+    return true
+end
+
+function test_trunc_tdist_upper_side()
+    d = truncated(TDist(5.0); upper=0)
+    # ν = 5: cap = 5/3
+    exists_dist_from_mean_var(d, -3.0, 14.0) || return false  # < 5/3·9 = 15
+    exists_dist_from_mean_var(d, -3.0, 16.0) && return false  # > 15
+    return true
+end

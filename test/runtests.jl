@@ -171,6 +171,16 @@ end
     @test test_truncated_poisson_mean_var_consistent()
     @test test_truncated_poisson_inconsistent_var_throws()
     @test test_truncated_poisson_mean_outside_bounds_rejected()
+    @test test_half_trunc_normal_lower_feasible()
+    @test test_half_trunc_normal_lower_above_bound_rejected()
+    @test test_half_trunc_normal_lower_with_offset()
+    @test test_half_trunc_normal_upper_feasible()
+    @test test_half_trunc_laplace_logistic()
+    @test test_half_trunc_locscale_two_sided_still_uses_dome()
+    @test test_trunc_tdist_low_dof_rejected()
+    @test test_trunc_tdist_pareto_bound()
+    @test test_trunc_tdist_recovers_normal_limit()
+    @test test_trunc_tdist_upper_side()
 end
 
 @testset "Langevin feasibility (truncated Normal/Laplace/Logistic)" begin
