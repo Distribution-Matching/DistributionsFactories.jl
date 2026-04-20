@@ -198,6 +198,72 @@ end
 # genuinely *strictly* below the envelope — i.e. the margin is visible, not
 # just "passes the < test by a hair". This rules out the pathological case
 # where exists_dist_from_mean_var accepts because we got lucky with rounding.
+# --- Constructor roundtrip: dist_from_mean_var on Truncated{D} actually
+# recovers the input moments (not just feasibility predicate semantics). ---
+
+function _constructor_roundtrip_family(D, parents, intervals;
+                                       atol::Real = 1e-6, rtol::Real = 1e-6,
+                                       min_truncation_mass::Real = 0.05,
+                                       boundary_margin::Real = 0.05)
+    for parent in parents
+        for (a, b) in intervals
+            # Skip pathological cases where the parent puts almost no mass in
+            # [a, b] — the truncated moments are numerically defined but
+            # standardize to the boundary of the canonical (-0.5, 0.5) domain
+            # where Newton legitimately struggles.
+            mass = cdf(parent, b) - cdf(parent, a)
+            mass ≥ min_truncation_mass || continue
+
+            μ̄, σ̄² = _truncated_moments(parent, a, b)
+            (isfinite(μ̄) && isfinite(σ̄²) && σ̄² > 0) || continue
+
+            # Skip cases whose standardized mean lies within `boundary_margin`
+            # of ±0.5 — this is the "mass concentrated at a boundary" regime
+            # (e.g. half-truncated Laplace at its mode), where the parent is
+            # at the edge of identifiability. The solver's design regime is
+            # moments comfortably inside the canonical interval.
+            c, w = (a + b) / 2, b - a
+            μ̄_std = (μ̄ - c) / w
+            abs(μ̄_std) ≤ 0.5 - boundary_margin || continue
+
+            d_template = truncated(D(), a, b)
+            d_recovered = dist_from_mean_var(d_template, μ̄, σ̄²)
+
+            μ_back, σ²_back = _truncated_moments(d_recovered.untruncated, a, b)
+            if !isapprox(μ_back, μ̄; atol=atol, rtol=rtol)
+                @info "constructor mean mismatch" D parent a b μ̄ μ_back
+                return false
+            end
+            if !isapprox(σ²_back, σ̄²; atol=atol, rtol=rtol)
+                @info "constructor var mismatch" D parent a b σ̄² σ²_back
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function test_truncated_normal_constructor_roundtrip()
+    parents = [Normal(μ, σ) for μ in (-1.0, -0.25, 0.0, 0.25, 1.0)
+                            for σ in (0.05, 0.2, 0.5, 1.0, 3.0)]
+    return _constructor_roundtrip_family(Normal, parents,
+                                          ((-0.5, 0.5), (0.0, 1.0), (-2.0, 3.0)))
+end
+
+function test_truncated_laplace_constructor_roundtrip()
+    parents = [Laplace(μ, θ) for μ in (-1.0, -0.25, 0.0, 0.25, 1.0)
+                             for θ in (0.05, 0.2, 0.5, 1.0, 3.0)]
+    return _constructor_roundtrip_family(Laplace, parents,
+                                          ((-0.5, 0.5), (0.0, 1.0), (-2.0, 3.0)))
+end
+
+function test_truncated_logistic_constructor_roundtrip()
+    parents = [Logistic(μ, s) for μ in (-1.0, -0.25, 0.0, 0.25, 1.0)
+                              for s in (0.05, 0.2, 0.5, 1.0, 3.0)]
+    return _constructor_roundtrip_family(Logistic, parents,
+                                          ((-0.5, 0.5), (0.0, 1.0), (-2.0, 3.0)))
+end
+
 function test_truncated_families_margin_from_dome()
     # Pick a middle-of-the-road parent per family, away from the degenerate /
     # saturated regimes where the distribution is effectively a point mass or

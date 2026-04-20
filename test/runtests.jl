@@ -188,5 +188,8 @@ end
     @test test_truncated_laplace_roundtrip_feasible()
     @test test_truncated_logistic_roundtrip_feasible()
     @test test_truncated_families_margin_from_dome()
+    @test test_truncated_normal_constructor_roundtrip()
+    @test test_truncated_laplace_constructor_roundtrip()
+    @test test_truncated_logistic_constructor_roundtrip()
 end
 
