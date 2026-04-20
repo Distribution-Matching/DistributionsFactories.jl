@@ -7,7 +7,12 @@
 
 Construct a distribution of type `D` with the given mean `μ̄` and variance `σ̄²`.
 
-Dispatches on the distribution type (or instance for truncated/TDist).
+Dispatches on either the distribution type (`Type{<:Distribution}`) or an
+instance — instance dispatch is used for the cases where the bounds or shape
+parameters carry information beyond the type, namely `TDist` (provides ν),
+`Truncated{<:Normal/Laplace/Logistic/TDist}` (provides truncation bounds),
+and `Truncated{<:Poisson}` (provides the integer support).
+
 Throws `DomainError` with a reason when no valid distribution exists for the
 given moments. Use [`exists_dist_from_mean_var`](@ref) for a non-throwing
 `Bool` feasibility predicate.
@@ -182,26 +187,33 @@ function _solve_evt_shape(μ̄::Number, σ̄²::Number, positiveSolution::Bool)
     CV = √(var_b)/μ_b
     f(x) = x/beta(1/x,1/x)-(1+CV^2)/2
     if 0 < CV^2 < 1
-        lowerBound = positiveSolution>0 ? 1/CV : min(-√(2π), -1/CV);
-        upperBound = positiveSolution>0 ? (CV^2+1)/(2CV^2) : -2(1+CV^2)/(CV^2);
-        return find_zero(f, (lowerBound, upperBound));
+        lowerBound = positiveSolution>0 ? 1/CV : min(-√(2π), -1/CV)
+        upperBound = positiveSolution>0 ? (CV^2+1)/(2CV^2) : -2(1+CV^2)/(CV^2)
+        sign(f(lowerBound)) * sign(f(upperBound)) ≤ 0 || throw(ErrorException(
+            "_solve_evt_shape: no sign change in bracket [$lowerBound, $upperBound] " *
+            "for CV²=$(Float64(CV^2)), positiveSolution=$positiveSolution"))
+        return find_zero(f, (lowerBound, upperBound))
     elseif CV^2 == 1
-        return positiveSolution>0 ? 1 : find_zero(f, -√(7));
+        return positiveSolution>0 ? 1 : find_zero(f, -√(7))
     elseif CV^2 > 1
-        lowerBound = positiveSolution>0 ? 0 : -2;
-        upperBound = positiveSolution>0 ? 1 : -2(1+CV^2)/(CV^2);
-        while true
+        lowerBound = positiveSolution>0 ? 0 : -2
+        upperBound = positiveSolution>0 ? 1 : -2(1+CV^2)/(CV^2)
+        # Bisect down until f changes sign in [lowerBound, upperBound].
+        for _ in 1:200
             tmp = (upperBound+lowerBound)/2
-            if f(tmp)<0
-                upperBound = tmp;
-            elseif f(tmp)>0
-                lowerBound = tmp;
-                break
+            ftmp = f(tmp)
+            ftmp == 0 && return tmp
+            if ftmp < 0
+                upperBound = tmp
             else
-                return tmp;
+                lowerBound = tmp
+                break
             end
         end
-        return find_zero(f, (lowerBound, upperBound));
+        sign(f(lowerBound)) * sign(f(upperBound)) ≤ 0 || throw(ErrorException(
+            "_solve_evt_shape: no sign change after bisection for " *
+            "CV²=$(Float64(CV^2)), positiveSolution=$positiveSolution"))
+        return find_zero(f, (lowerBound, upperBound))
     end
 end
 
@@ -459,7 +471,10 @@ function dist_from_mean_var(d::Truncated{<:TDist}, μ̄::Number, σ̄²::Number)
 end
 
 function dist_from_mean_var(::Type{TriangularDist}, μ̄::Number, σ̄²::Number)
-    throw(ArgumentError("TriangularDist: 3 parameters and only 2 moment constraints — supply `mode` as well (use `make_dist(TriangularDist, mean=…, var=…, mode=…)`)"))
+    throw(ArgumentError(
+        "TriangularDist has 3 parameters (a, b, c) but only 2 moment " *
+        "constraints. Pass `mode=` as well: " *
+        "`make_dist(TriangularDist, mean=$μ̄, var=$σ̄², mode=…)`."))
 end
 
 """

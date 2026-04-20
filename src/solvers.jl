@@ -87,10 +87,11 @@ function _solve_truncated_unit(::Type{D}, μ̄_std::Real, σ̄²_std::Real;
             x_new = x + step * dx
             try
                 F_new = residual(x_new[1], x_new[2])
-                if maximum(abs.(F_new)) < maximum(abs.(F))
+                if all(isfinite, F_new) && maximum(abs.(F_new)) < maximum(abs.(F))
                     break
                 end
-            catch
+            catch e
+                e isa DomainError || e isa ArgumentError || rethrow()
             end
             step *= 0.5
         end
@@ -159,10 +160,11 @@ function _solve_truncated_half_below_unit(::Type{D}, target_z::Real;
             x_new = x + step * dx
             try
                 F_new = residual(x_new[1], x_new[2])
-                if maximum(abs.(F_new)) < maximum(abs.(F))
+                if all(isfinite, F_new) && maximum(abs.(F_new)) < maximum(abs.(F))
                     break
                 end
-            catch
+            catch e
+                e isa DomainError || e isa ArgumentError || rethrow()
             end
             step *= 0.5
         end
@@ -258,13 +260,19 @@ function _solve_truncated_tdist_half_below(ν::Real, lo::Real,
     end
 
     converged = false
+    J = zeros(2, 2)        # allocate once; reused across iterations
     for _ in 1:maxiter
         F = residual(x[1], x[2])
+        # If the quadrature normalisation collapsed (Z ≤ 0) the residual is
+        # [Inf, Inf]; that's not "converged", and feeding Inf into the linear
+        # solve produces NaN and a silent false success. Fail explicitly.
+        all(isfinite, F) || throw(ErrorException(
+            "_solve_truncated_tdist_half_below: residual non-finite at ν=$ν, " *
+            "x=$x — truncation mass underflowed"))
         if maximum(abs.(F)) < tol
             converged = true
             break
         end
-        J = zeros(2, 2)
         for j in 1:2
             xp = copy(x); xp[j] += h
             Fp = residual(xp[1], xp[2])
@@ -276,10 +284,11 @@ function _solve_truncated_tdist_half_below(ν::Real, lo::Real,
             x_new = x + step * dx
             try
                 F_new = residual(x_new[1], x_new[2])
-                if maximum(abs.(F_new)) < maximum(abs.(F))
+                if all(isfinite, F_new) && maximum(abs.(F_new)) < maximum(abs.(F))
                     break
                 end
-            catch
+            catch e
+                e isa DomainError || e isa ArgumentError || rethrow()
             end
             step *= 0.5
         end
@@ -381,10 +390,11 @@ function _solve_truncated_mean_var(::Type{D}, lo::Real, hi::Real,
             x_new = x_work + step * dx
             try
                 F_new = residual(x_new[1], x_new[2])
-                if maximum(abs.(F_new)) < maximum(abs.(F))
+                if all(isfinite, F_new) && maximum(abs.(F_new)) < maximum(abs.(F))
                     break
                 end
-            catch
+            catch e
+                e isa DomainError || e isa ArgumentError || rethrow()
             end
             step *= 0.5
         end
@@ -493,10 +503,11 @@ function _solve_folded_normal(target_μ::Real, target_var::Real;
             x_new = x + step * dx
             try
                 F_new = residual(x_new[1], x_new[2])
-                if maximum(abs.(F_new)) < maximum(abs.(F))
+                if all(isfinite, F_new) && maximum(abs.(F_new)) < maximum(abs.(F))
                     break
                 end
-            catch
+            catch e
+                e isa DomainError || e isa ArgumentError || rethrow()
             end
             step *= 0.5
         end

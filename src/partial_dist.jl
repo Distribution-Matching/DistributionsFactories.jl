@@ -103,7 +103,11 @@ function dist_from_mean_var(p::DistSpec{D}, μ̄::Number, σ̄²::Number) where 
         free_name = first(free)
         guess = _initial_guess(D, free_name, √σ̄²)
 
-        # Attempt 1: solve from variance, verify mean
+        # Attempt 1: solve from variance, verify mean. Solving from variance
+        # pins σ exactly; the mean check is a feasibility filter (rtol=1e-4 is
+        # generous because the system is overdetermined by construction —
+        # tightening to 1e-8 would reject benign cases). Variance is exact, so
+        # don't loosen its check on the symmetric path.
         local d
         try
             sol = _solve_for_param(p, free_name,
@@ -113,10 +117,12 @@ function dist_from_mean_var(p::DistSpec{D}, μ̄::Number, σ̄²::Number) where 
             if isapprox(mean(d), μ̄, rtol=1e-4)
                 return d
             end
-        catch
+        catch e
+            e isa DomainError || e isa ArgumentError || rethrow()
         end
 
-        # Attempt 2: solve from mean, verify variance
+        # Attempt 2: solve from mean, verify variance (mean exact, variance
+        # checked).
         try
             sol = _solve_for_param(p, free_name,
                 x -> mean(D(_fill_params(p, free_name, x)...)) - μ̄,
@@ -125,7 +131,8 @@ function dist_from_mean_var(p::DistSpec{D}, μ̄::Number, σ̄²::Number) where 
             if isapprox(var(d), σ̄², rtol=1e-4)
                 return d
             end
-        catch
+        catch e
+            e isa DomainError || e isa ArgumentError || rethrow()
         end
 
         throw(DomainError("$D with fixed $(Dict(fixed)): cannot satisfy both μ̄=$μ̄ and σ̄²=$σ̄² with 1 free parameter"))
@@ -158,10 +165,11 @@ function dist_from_mean_var(p::DistSpec{D}, μ̄::Number, σ̄²::Number) where 
                 x_new = x + step * dx
                 try
                     F_new = residual(x_new[1], x_new[2])
-                    if maximum(abs.(F_new)) < maximum(abs.(F))
+                    if all(isfinite, F_new) && maximum(abs.(F_new)) < maximum(abs.(F))
                         break
                     end
-                catch
+                catch e
+                    e isa DomainError || e isa ArgumentError || rethrow()
                 end
                 step *= 0.5
             end

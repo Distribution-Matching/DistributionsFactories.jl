@@ -49,6 +49,8 @@ function dist_from_quantile(::Type{Geometric}, p::Number, q::Number)
     # i.e. (1-prob)^(k+1) ≤ 1-p. For continuous matching we set equality at
     # k+1, then `prob = 1 - (1-p)^(1/(q+1))`.
     prob = 1 - (1 - p)^(1 / (q + 1))
+    0 < prob < 1 || throw(DomainError((p, q),
+        "Geometric: derived prob=$prob outside (0,1) — quantile spec degenerate"))
     return Geometric(prob)
 end
 
@@ -60,10 +62,14 @@ end
 Construct a 2-parameter distribution `D` such that its `p1`-th quantile equals `q1`
 and its `p2`-th quantile equals `q2`.
 
-Direct formula for location-scale families (`Normal`, `Laplace`, `Logistic`, `Cauchy`, `Gumbel`).
-Numerical (root-finding) for shape-scale families (`Gamma`, `Beta`).
+Currently implemented for:
+- Location-scale families (direct formula): `Normal`, `Laplace`, `Logistic`,
+  `Cauchy`, `Gumbel`.
+- Scale families (closed-form elimination): `LogNormal`, `Weibull`, `Pareto`.
+- Shape-scale families (numerical root-finding): `Gamma`, `Beta`.
 
-See also: [`make_dist`](@ref)
+Other distributions throw `MethodError`. See [`make_dist`](@ref) for the
+public entry point.
 """
 function dist_from_quantiles end
 

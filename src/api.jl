@@ -284,8 +284,8 @@ function dist_exists(D; support=nothing, kwargs...)::Bool
 end
 
 _dist_exists(D, s::MeanVarSpec)::Bool = exists_dist_from_mean_var(D, s.μ̄, s.σ̄²)
-_dist_exists(D, s::MeanSpec)::Bool = true
-_dist_exists(D, s::VarSpec)::Bool = true
+_dist_exists(D, s::MeanSpec)::Bool    = _try_construct(dist_from_mean, D, s.μ̄)
+_dist_exists(D, s::VarSpec)::Bool     = _try_construct(dist_from_var, D, s.σ̄²)
 
 # Mode- and quantile-augmented specs: there is no generic feasibility predicate,
 # so try the constructor and return whether it succeeds. This matches the spirit
@@ -415,11 +415,8 @@ function _resolve_mean_var(; mean=nothing, var=nothing, std=nothing,
     return μ̄, σ̄²
 end
 
-_filter_feasible(candidates, μ̄, σ̄²) =
-    filter(D -> exists_dist_from_mean_var(D, μ̄, σ̄²), candidates)
-
 # Generic filter using the full _moment_spec dispatch — handles mode, quantile,
-# and combined specs that `_filter_feasible(_, μ̄, σ̄²)` can't see.
+# and combined specs by delegating to the corresponding _dist_exists method.
 _filter_feasible_spec(candidates, spec) =
     filter(D -> _dist_exists(D, spec), candidates)
 

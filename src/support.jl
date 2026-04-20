@@ -122,7 +122,7 @@ function _dist_on_support_discrete(D, μ̄, σ̄², r::AbstractUnitRange)
 
     if natural === :integer_bounded
         d = dist_from_mean_var(D, μ̄ - a, σ̄²)
-        return a + 1 * d
+        return a + d
     elseif natural === :integer_nonneg
         throw(ArgumentError("$D on a bounded range is not yet supported"))
     end
