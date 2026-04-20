@@ -266,3 +266,98 @@ function test_trunc_tdist_upper_side()
     exists_dist_from_mean_var(d, -3.0, 16.0) && return false  # > 15
     return true
 end
+
+# --- Weibull / Frechet constructor roundtrip ---
+
+function test_weibull_constructor_roundtrip()
+    # Sweep parents and verify dist_from_mean_var recovers them.
+    for k in (0.7, 1.0, 1.5, 2.5, 4.0), λ in (0.5, 1.0, 3.0)
+        parent = Weibull(k, λ)
+        μ̄, σ̄² = mean(parent), var(parent)
+        d = dist_from_mean_var(Weibull, μ̄, σ̄²)
+        isapprox(mean(d), μ̄; rtol=1e-4) || return false
+        isapprox(var(d), σ̄²; rtol=1e-4) || return false
+    end
+    return true
+end
+
+function test_frechet_constructor_roundtrip()
+    # Frechet: shape α > 2 needed for variance.
+    for α in (2.5, 3.0, 5.0, 10.0), s in (0.5, 1.0, 3.0)
+        parent = Frechet(α, s)
+        μ̄, σ̄² = mean(parent), var(parent)
+        d = dist_from_mean_var(Frechet, μ̄, σ̄²)
+        isapprox(mean(d), μ̄; rtol=1e-4) || return false
+        isapprox(var(d), σ̄²; rtol=1e-4) || return false
+    end
+    return true
+end
+
+# --- InverseGamma μ̄ > 0 enforcement ---
+
+function test_inverse_gamma_negative_mean_rejected()
+    return !exists_dist_from_mean_var(InverseGamma, -1.0, 1.0)
+end
+
+# --- Truncated{<:Poisson} non-integer bound rejection ---
+
+function test_truncated_poisson_noninteger_bounds_rejected()
+    template = truncated(Poisson(0.0); lower=0.5, upper=10)
+    try
+        make_dist(template, mean=3.0, var=2.0)
+        return false
+    catch e
+        return e isa ArgumentError
+    end
+end
+
+# --- Truncated{<:TDist} factory (half-truncated only) -----------------------
+
+function _trunc_tdist_half_moments(parent, lo, hi)
+    if isfinite(lo)
+        Z, _ = quadgk(x -> pdf(parent, x), lo, Inf; rtol=1e-10)
+        m, _ = quadgk(x -> x*pdf(parent, x), lo, Inf; rtol=1e-10)
+        m2,_ = quadgk(x -> x^2*pdf(parent, x), lo, Inf; rtol=1e-10)
+    else
+        Z, _ = quadgk(x -> pdf(parent, x), -Inf, hi; rtol=1e-10)
+        m, _ = quadgk(x -> x*pdf(parent, x), -Inf, hi; rtol=1e-10)
+        m2,_ = quadgk(x -> x^2*pdf(parent, x), -Inf, hi; rtol=1e-10)
+    end
+    return m/Z, m2/Z - (m/Z)^2
+end
+
+function test_trunc_tdist_factory_half_below_roundtrip()
+    for ν in (2.5, 3.0, 5.0, 10.0), μp in (-1.0, 0.0, 0.5, 2.0)
+        parent = μp + 1.0 * TDist(ν)
+        μ̄, σ̄² = _trunc_tdist_half_moments(parent, 0.0, Inf)
+        template = truncated(TDist(ν); lower=0)
+        d = dist_from_mean_var(template, μ̄, σ̄²)
+        μ_back, σ²_back = _trunc_tdist_half_moments(d.untruncated, 0.0, Inf)
+        isapprox(μ_back, μ̄; rtol=1e-4)  || return false
+        isapprox(σ²_back, σ̄²; rtol=1e-4) || return false
+    end
+    return true
+end
+
+function test_trunc_tdist_factory_half_above_roundtrip()
+    for ν in (3.0, 5.0), μp in (-2.0, -0.5, 1.0)
+        parent = μp + 1.0 * TDist(ν)
+        μ̄, σ̄² = _trunc_tdist_half_moments(parent, -Inf, 0.0)
+        template = truncated(TDist(ν); upper=0)
+        d = dist_from_mean_var(template, μ̄, σ̄²)
+        μ_back, σ²_back = _trunc_tdist_half_moments(d.untruncated, -Inf, 0.0)
+        isapprox(μ_back, μ̄; rtol=1e-4)  || return false
+        isapprox(σ²_back, σ̄²; rtol=1e-4) || return false
+    end
+    return true
+end
+
+function test_trunc_tdist_factory_two_sided_not_implemented()
+    template = truncated(TDist(5); lower=-1, upper=1)
+    try
+        dist_from_mean_var(template, 0.0, 0.5)
+        return false
+    catch e
+        return e isa ArgumentError
+    end
+end

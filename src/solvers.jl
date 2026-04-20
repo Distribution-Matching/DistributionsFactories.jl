@@ -221,6 +221,99 @@ function _solve_truncated_half_above(::Type{D}, hi::Real,
     return truncated(D(-μp_ref, σp_ref), -Inf, hi)
 end
 
+# --- Truncated location-scale Student-t -------------------------------------
+
+"""
+    _solve_truncated_tdist_half_below(ν, lo, target_μ, target_var; …)
+
+Half-truncated location-scale Student-t on `[lo, ∞)`. Find `(μp, σp)` such that
+`truncated(μp + σp · TDist(ν), lo, Inf)` has mean `target_μ` and variance
+`target_var`. Standardize-and-solve: shift so `lo = 0`, scale by `σ̄`, then
+2D Newton on the canonical problem with target mean `z = (target_μ-lo)/σ̄`
+and variance 1.
+"""
+function _solve_truncated_tdist_half_below(ν::Real, lo::Real,
+                                            target_μ::Real, target_var::Real;
+                                            maxiter::Int = 200, tol::Real = 1e-10)
+    σ̄ = √target_var
+    z = (target_μ - lo) / σ̄
+
+    # Canonical: parent μp_std + σp_std·T_ν truncated to [0, ∞), match (z, 1).
+    x = [0.0, 0.0]   # (μp_std, log σp_std), initial guess: standard half-t.
+    h = 1e-7
+
+    function residual(μp, logσ)
+        σp = exp(logσ)
+        # Quadrature in standard-t coordinates with Inf upper bound — QuadGK
+        # handles heavy-tailed integrands via change-of-variable. Without this
+        # the variance integral at small ν (heavy tail) loses 1% accuracy.
+        tlo = -μp / σp
+        Z, _  = quadgk(t -> pdf(TDist(ν), t),                tlo, Inf; rtol=1e-9)
+        Z > 0 || return [Inf, Inf]
+        m1, _ = quadgk(t -> (μp + σp*t)   * pdf(TDist(ν), t), tlo, Inf; rtol=1e-9)
+        m2, _ = quadgk(t -> (μp + σp*t)^2 * pdf(TDist(ν), t), tlo, Inf; rtol=1e-9)
+        m  = m1 / Z
+        v  = m2 / Z - m^2
+        return [m - z, v - 1.0]
+    end
+
+    converged = false
+    for _ in 1:maxiter
+        F = residual(x[1], x[2])
+        if maximum(abs.(F)) < tol
+            converged = true
+            break
+        end
+        J = zeros(2, 2)
+        for j in 1:2
+            xp = copy(x); xp[j] += h
+            Fp = residual(xp[1], xp[2])
+            J[:, j] = (Fp - F) / h
+        end
+        dx = J \ (-F)
+        step = 1.0
+        for _ in 1:20
+            x_new = x + step * dx
+            try
+                F_new = residual(x_new[1], x_new[2])
+                if maximum(abs.(F_new)) < maximum(abs.(F))
+                    break
+                end
+            catch
+            end
+            step *= 0.5
+        end
+        x .+= step * dx
+    end
+
+    converged || throw(ErrorException(
+        "_solve_truncated_tdist_half_below: did not converge for ν=$ν after " *
+        "$maxiter iterations (target z=$z)"))
+
+    μp_std, σp_std = x[1], exp(x[2])
+    μp = lo + σ̄ * μp_std
+    σp = σ̄ * σp_std
+    return truncated(μp + σp * TDist(ν), lo, Inf)
+end
+
+"""
+    _solve_truncated_tdist_half_above(ν, hi, target_μ, target_var)
+
+Upper half-truncation by reflection. TDist is symmetric, so reflecting the
+parent location works.
+"""
+function _solve_truncated_tdist_half_above(ν::Real, hi::Real,
+                                            target_μ::Real, target_var::Real;
+                                            maxiter::Int = 200, tol::Real = 1e-10)
+    d_ref = _solve_truncated_tdist_half_below(ν, -hi, -target_μ, target_var;
+                                               maxiter=maxiter, tol=tol)
+    # untruncated of d_ref is a LocationScale wrapping TDist(ν).
+    untrunc = d_ref.untruncated
+    μp_ref = untrunc.μ
+    σp_ref = untrunc.σ
+    return truncated(-μp_ref + σp_ref * TDist(ν), -Inf, hi)
+end
+
 """
     _solve_truncated_mean_var(D, lo, hi, target_μ, target_var; maxiter=200, tol=1e-10)
 

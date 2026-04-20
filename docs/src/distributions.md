@@ -23,16 +23,16 @@
 | 17 | Pareto | [0, Inf) | 1 | Yes | Direct formula | |
 | 18 | Chi | [0, Inf) | 1 | Yes | Direct formula | |
 | 19 | Rayleigh | [0, Inf) | 1 | Yes | Direct formula | Special case of Chi; 1 free parameter |
-| 20 | Half-truncated Normal | [0, Inf) | 2 | No | | |
-| 21 | Half-truncated Laplace | [0, Inf) | 2 | No | | |
-| 22 | Half-truncated Logistic | [0, Inf) | 2 | No | | |
+| 20 | Half-truncated Normal | [a, ∞) | 2 | Yes | Numerical (standardize+2D Newton) | Use `truncated(Normal(); lower=a)` template; feasibility σ̄² < (μ̄-a)² |
+| 21 | Half-truncated Laplace | [a, ∞) | 2 | Yes | Numerical (standardize+2D Newton); boundary handled directly | Boundary σ̄² = (μ̄-a)² attained as Exponential |
+| 22 | Half-truncated Logistic | [a, ∞) | 2 | Yes | Numerical (standardize+2D Newton) | Same exp-tail bound as Normal |
 | 23 | Beta | [0, 1] | 2 | Yes | Direct formula | |
 | 24 | Uniform | [0, 1] | 0 | Yes | Direct formula | Adjusts support |
 | 25 | Symmetric Triangular | [0, 1] | 0 | Yes | Direct formula | Type `SymTriangularDist`; adjusts support |
 | 26 | Triangular | ℝ | 3 | Yes (mean+var+mode) | Direct formula | `TriangularDist(a, b, c)` — supply mode in addition to mean/var |
-| 27 | Doubly-truncated Normal | [0, 1] | 2 | No | | |
-| 28 | Doubly-truncated Laplace | [0, 1] | 2 | No | | |
-| 29 | Doubly-truncated Logistic | [0, 1] | 2 | No | | |
+| 27 | Doubly-truncated Normal | [a, b] | 2 | Yes | Numerical (standardize to [-0.5, 0.5] + 2D Newton) | Langevin-envelope feasibility |
+| 28 | Doubly-truncated Laplace | [a, b] | 2 | Yes | Numerical (standardize to [-0.5, 0.5] + 2D Newton) | Same envelope as Normal |
+| 29 | Doubly-truncated Logistic | [a, b] | 2 | Yes | Numerical (standardize to [-0.5, 0.5] + 2D Newton) | Same envelope as Normal |
 
 ## Discrete distributions
 
@@ -97,11 +97,20 @@ make_dist(template, mean=3.0, var=v)            # var must be consistent
 DistributionsFactories.dist_from_mean(template, 3.0)  # mean-only path
 ```
 
+### Half-truncated Student-$t$
+
+`Truncated{<:TDist}` on `[a, ∞)` or `(-∞, b]` has a feasibility predicate
+based on the Pareto-tail bound `σ̄² < ν/(ν-2)·gap²` (requires `ν > 2`). The
+constructor is **not yet implemented** — only feasibility checking. See
+the GitHub issue tracker for the open construction work.
+
 ## Experimental / work in progress
 
-The following have initial code but are not fully validated:
-
-- **Truncated Normal on [a,b]** -- 2D Newton solver with quadrature. Passes basic tests.
-- **Truncated Gamma on [a,b]** -- same solver. Passes basic tests.
-- **Truncated Laplace on [a,b]** -- same solver. Not yet tested end-to-end.
-- **Truncated Logistic on [a,b]** -- same solver. Not yet tested end-to-end.
+- **Doubly-truncated Gamma on [a, b]** — generic 2D Newton solver in user
+  coordinates (the standardize-and-solve refactor only applies to
+  location-scale families). One happy-path test, no roundtrip sweep.
+- **Doubly-truncated Student-$t$** — only feasibility (loose Bhatia–Davis
+  fallback). Tight Pareto-tail dome and constructor are open.
+- **Solver convergence near the canonical boundary** for
+  `Truncated{<:Normal/Laplace/Logistic}` — fails when `|μ̄_std|` is close
+  to `±0.5` and variance is small. Documented in GitHub issue #1.

@@ -181,6 +181,13 @@ end
     @test test_trunc_tdist_pareto_bound()
     @test test_trunc_tdist_recovers_normal_limit()
     @test test_trunc_tdist_upper_side()
+    @test test_weibull_constructor_roundtrip()
+    @test test_frechet_constructor_roundtrip()
+    @test test_inverse_gamma_negative_mean_rejected()
+    @test test_truncated_poisson_noninteger_bounds_rejected()
+    @test test_trunc_tdist_factory_half_below_roundtrip()
+    @test test_trunc_tdist_factory_half_above_roundtrip()
+    @test test_trunc_tdist_factory_two_sided_not_implemented()
 end
 
 @testset "Langevin feasibility (truncated Normal/Laplace/Logistic)" begin

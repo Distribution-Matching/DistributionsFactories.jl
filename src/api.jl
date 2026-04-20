@@ -185,6 +185,16 @@ moment or quantile specification. All parameters are keyword arguments.
 - `support=a..b` — place distribution on arbitrary domain (IntervalSets or RealInterval)
 - `support=a:b` — discrete shift
 
+# Truncated families
+For `Truncated{<:Normal/Laplace/Logistic}` factories, pass an instance whose
+truncation bounds describe the desired support. Both two-sided and one-sided
+truncation are supported:
+```julia
+make_dist(truncated(Normal(); lower=-0.5, upper=0.5), mean=0.1, var=0.05)
+make_dist(truncated(Normal(); lower=0),               mean=2.5, var=1.0)
+make_dist(truncated(Laplace(); upper=0),              mean=-1.0, var=0.5)
+```
+
 # Examples
 ```julia
 make_dist(Gamma, mean=5.0, var=3.0)
@@ -197,6 +207,8 @@ make_dist(Beta, mean=3.5, var=0.5, support=2..7)
 make_dist(TriangularDist, mean=5.0, var=2.0, mode=4.0)
 make_dist(DiscreteTriangular, mean=5.0, var=2.0, mode=5)
 make_dist(FoldedNormal, mean=2.5, var=1.2)
+make_dist(truncated(Normal(); lower=0), mean=2.0, var=1.0)
+make_dist(truncated(Normal(); lower=-0.5, upper=0.5), mean=0.1, var=0.05)
 make_dist(@dist(Gamma(3.0, _)), mean=5.0)
 make_dist(@dist(Logistic(2.0, _)), var=22.3)
 ```
@@ -406,6 +418,11 @@ end
 _filter_feasible(candidates, μ̄, σ̄²) =
     filter(D -> exists_dist_from_mean_var(D, μ̄, σ̄²), candidates)
 
+# Generic filter using the full _moment_spec dispatch — handles mode, quantile,
+# and combined specs that `_filter_feasible(_, μ̄, σ̄²)` can't see.
+_filter_feasible_spec(candidates, spec) =
+    filter(D -> _dist_exists(D, spec), candidates)
+
 # --- Public API ---
 
 """
@@ -441,11 +458,9 @@ available_distributions(0:10, mean=5.0, var=2.0)
 """
 function available_distributions(support; kwargs...)
     candidates = _candidates_for(support)
-    μ̄, σ̄² = _resolve_mean_var(; kwargs...)
-    if μ̄ !== nothing && σ̄² !== nothing
-        return _filter_feasible(candidates, μ̄, σ̄²)
-    end
-    return candidates
+    isempty(kwargs) && return candidates
+    spec = _moment_spec(; kwargs...)
+    return _filter_feasible_spec(candidates, spec)
 end
 
 """

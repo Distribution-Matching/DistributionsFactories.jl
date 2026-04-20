@@ -165,7 +165,11 @@ function _why_not_dist_from_mean_var(::Type{FDist}, μ̄::Number, σ̄²::Number
 end
 
 function _why_not_dist_from_mean_var(::Type{InverseGamma}, μ̄::Number, σ̄²::Number)
-    return _why_not_positive_var("InverseGamma", σ̄²)
+    r = _why_not_positive_var("InverseGamma", σ̄²); isnothing(r) || return r
+    # α = 2 + μ̄²/σ̄² > 2 is automatic for σ̄² > 0; β = μ̄(α-1) requires μ̄ > 0
+    # for the resulting InverseGamma to be valid (β > 0).
+    μ̄ > 0 || return "InverseGamma: the condition μ̄ > 0 is not satisfied"
+    return nothing
 end
 
 function _why_not_dist_from_mean_var(::Type{Binomial}, μ̄::Number, σ̄²::Number)

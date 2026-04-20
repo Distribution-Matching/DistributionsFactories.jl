@@ -433,6 +433,31 @@ function dist_from_mean_var(d::Truncated{<:Logistic}, μ̄::Number, σ̄²::Numb
     return _dispatch_truncated_locscale_factory(Logistic, lo, hi, μ̄, σ̄²)
 end
 
+"""
+    dist_from_mean_var(d::Truncated{<:TDist}, μ̄, σ̄²)
+
+Numerical (2D Newton) for half-truncated location-scale Student-t. The ν is
+taken from the template's parent. Two-sided is not yet implemented (open
+follow-up: tight Pareto-tail dome and corresponding solver).
+"""
+function dist_from_mean_var(d::Truncated{<:TDist}, μ̄::Number, σ̄²::Number)
+    _require_dist_from_mean_var(d, μ̄, σ̄²)
+    ν = dof(d.untruncated)
+    lo, hi = extrema(d)
+    if isfinite(lo) && isfinite(hi)
+        throw(ArgumentError(
+            "Two-sided Truncated{<:TDist} factory is not yet implemented " *
+            "(only feasibility predicate). See GitHub issue #1."))
+    elseif isfinite(lo)
+        return _solve_truncated_tdist_half_below(ν, lo, Float64(μ̄), Float64(σ̄²))
+    elseif isfinite(hi)
+        return _solve_truncated_tdist_half_above(ν, hi, Float64(μ̄), Float64(σ̄²))
+    else
+        # Both infinite: untruncated. Delegate to instance dispatch.
+        return dist_from_mean_var(d.untruncated, μ̄, σ̄²)
+    end
+end
+
 function dist_from_mean_var(::Type{TriangularDist}, μ̄::Number, σ̄²::Number)
     throw(ArgumentError("TriangularDist: 3 parameters and only 2 moment constraints — supply `mode` as well (use `make_dist(TriangularDist, mean=…, var=…, mode=…)`)"))
 end
@@ -481,6 +506,8 @@ mean equals `μ̄`. Variance is then determined; if `σ̄²` deviates significan
 from the resulting variance an `ArgumentError` is raised.
 """
 function dist_from_mean_var(d::Truncated{<:Poisson}, μ̄::Number, σ̄²::Number)
+    isinteger(d.lower) || throw(ArgumentError("Truncated Poisson: lower bound must be an integer (got $(d.lower))"))
+    isinteger(d.upper) || throw(ArgumentError("Truncated Poisson: upper bound must be an integer (got $(d.upper))"))
     lo, hi = Float64(d.lower), Float64(d.upper)
     σ̄² > 0 || throw(DomainError(σ̄², "Poisson: σ̄² must be > 0"))
     (lo < μ̄ < hi) || throw(DomainError(μ̄, "Truncated Poisson: μ̄ must be in ($lo, $hi)"))
@@ -499,6 +526,8 @@ Numerical (1D root-finding). Construct a Poisson truncated to `extrema(d)` whose
 mean equals `μ̄`. The Poisson rate λ is the single free parameter.
 """
 function dist_from_mean(d::Truncated{<:Poisson}, μ̄::Number)
+    isinteger(d.lower) || throw(ArgumentError("Truncated Poisson: lower bound must be an integer (got $(d.lower))"))
+    isinteger(d.upper) || throw(ArgumentError("Truncated Poisson: upper bound must be an integer (got $(d.upper))"))
     lo, hi = Float64(d.lower), Float64(d.upper)
     (lo < μ̄ < hi) || throw(DomainError(μ̄, "Truncated Poisson: μ̄ must be in ($lo, $hi)"))
     return _solve_truncated_poisson_mean(lo, hi, Float64(μ̄))
