@@ -27,6 +27,7 @@ using Distributions
 
 # Construct a Gamma from mean and variance
 d = make_dist(Gamma, mean=5.0, var=3.0)
+typeof(d)         # Gamma{Float64}
 mean(d), var(d)   # (5.0, 3.0)
 
 # From mean and coefficient of variation
@@ -34,6 +35,7 @@ d = make_dist(Gamma, mean=10.0, cv=0.5)
 
 # Truncated Normal on [-1, 4] with mean 1 and standard deviation 0.8
 d = make_dist(truncated(Normal(); lower=-1, upper=4), mean=1.0, std=0.8)
+typeof(d)          # Truncated{Normal{Float64}, Continuous, Float64, Float64, Float64}
 mean(d), std(d)    # (1.0, 0.8)  — moments after truncation
 d.untruncated      # Normal(μ ≈ 0.9822, σ ≈ 0.8232)
                    # — parent solved so the truncated distribution hits the request
