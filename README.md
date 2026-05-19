@@ -318,3 +318,7 @@ The following have initial code but are not fully validated:
 | Location-scale formula | Quantile matching for Normal, Laplace, Logistic, Cauchy, Gumbel |
 | Numerical root-finding | Quantile matching for Gamma, Beta |
 | Moment transform + `LocationScale` | Arbitrary support (affine) |
+
+## Testing
+
+Run the test suite with `]test DistributionsFactories` (or `Pkg.test("DistributionsFactories")`). The suite is self-contained — no external dependencies beyond what the package already requires. The Python port [distsfactory-python](https://github.com/Distribution-Matching/distsfactory-python) cross-validates against a JSON oracle generated from this package, so any cross-language numerical drift surfaces there.
