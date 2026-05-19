@@ -6,18 +6,17 @@ The `..` operator from [IntervalSets.jl](https://github.com/JuliaMath/IntervalSe
 
 ## Installation
 
-Once registered in the Julia General registry:
+Available from the Julia General registry:
 
 ```julia
 using Pkg
 Pkg.add("DistributionsFactories")
 ```
 
-Or directly from the repository:
+or, equivalently, in Pkg mode:
 
-```julia
-using Pkg
-Pkg.add(url="https://github.com/Distribution-Matching/DistributionsFactories.jl.git")
+```
+] add DistributionsFactories
 ```
 
 ## Quick start
@@ -32,6 +31,10 @@ mean(d), var(d)   # (5.0, 3.0)
 
 # From mean and coefficient of variation
 d = make_dist(Gamma, mean=10.0, cv=0.5)
+
+# Truncated Normal on [-1, 4] with mean 1 and standard deviation 0.8
+d = make_dist(truncated(Normal(); lower=-1, upper=4), mean=1.0, std=0.8)
+mean(d), std(d)   # (1.0, 0.8)
 
 # From a single quantile
 d = make_dist(Exponential, median=2.0)
