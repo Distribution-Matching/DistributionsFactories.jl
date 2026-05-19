@@ -10,7 +10,8 @@ The primary entry point is [`make_dist`](@ref). See also [`dist_exists`](@ref),
 """
 module DistributionsFactories
 
-using Distributions
+using Reexport
+@reexport using Distributions
 using SpecialFunctions
 using Polynomials
 using Roots
