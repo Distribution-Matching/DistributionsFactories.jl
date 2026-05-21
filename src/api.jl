@@ -388,33 +388,6 @@ function _candidates_for(r::AbstractUnitRange)
     end
 end
 
-# --- Convert keyword specifications to (μ̄, σ̄²) ---
-
-function _resolve_mean_var(; mean=nothing, var=nothing, std=nothing,
-                            cv=nothing, scv=nothing, second_moment=nothing,
-                            kwargs...)
-    μ̄ = mean
-    σ̄² = var
-
-    if μ̄ !== nothing
-        if std !== nothing
-            σ̄² === nothing || throw(ArgumentError("Cannot specify both var and std"))
-            σ̄² = std^2
-        elseif cv !== nothing
-            σ̄² === nothing || throw(ArgumentError("Cannot specify both var and cv"))
-            σ̄² = (cv * μ̄)^2
-        elseif scv !== nothing
-            σ̄² === nothing || throw(ArgumentError("Cannot specify both var and scv"))
-            σ̄² = scv * μ̄^2
-        elseif second_moment !== nothing
-            σ̄² === nothing || throw(ArgumentError("Cannot specify both var and second_moment"))
-            σ̄² = second_moment - μ̄^2
-        end
-    end
-
-    return μ̄, σ̄²
-end
-
 # Generic filter using the full _moment_spec dispatch — handles mode, quantile,
 # and combined specs by delegating to the corresponding _dist_exists method.
 _filter_feasible_spec(candidates, spec) =

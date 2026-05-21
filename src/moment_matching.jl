@@ -198,7 +198,8 @@ function _solve_evt_shape(μ̄::Number, σ̄²::Number, positiveSolution::Bool)
     elseif CV^2 > 1
         lowerBound = positiveSolution>0 ? 0 : -2
         upperBound = positiveSolution>0 ? 1 : -2(1+CV^2)/(CV^2)
-        # Bisect down until f changes sign in [lowerBound, upperBound].
+        # f(upperBound) < 0 at entry; bisect inward from above until we find a
+        # midpoint where f ≥ 0, then exit with that midpoint as the new lower.
         for _ in 1:200
             tmp = (upperBound+lowerBound)/2
             ftmp = f(tmp)
@@ -295,9 +296,9 @@ Requires `1 < μ̄ < 2` and `σ̄² > μ̄²(μ̄-1)/(2-μ̄)`.
 """
 function dist_from_mean_var(::Type{FDist}, μ̄::Number, σ̄²::Number)
     _require_dist_from_mean_var(FDist, μ̄, σ̄²)
-    v₂ = 2*μ̄/(μ̄-1)
-    v₁ = 2*μ̄^2*(v₂-2)/(σ̄²*(v₂-4)-2*μ̄^2)
-    return FDist(v₁,v₂)
+    ν₂ = 2*μ̄/(μ̄-1)
+    ν₁ = 2*μ̄^2*(ν₂-2)/(σ̄²*(ν₂-4)-2*μ̄^2)
+    return FDist(ν₁, ν₂)
 end
 
 """
