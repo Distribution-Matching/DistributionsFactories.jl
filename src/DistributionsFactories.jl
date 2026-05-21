@@ -29,7 +29,7 @@ include("extensions/discrete_triangular.jl")
 
 include("solvers.jl")
 include("langevin.jl")
-include("exists_dist.jl")
+include("dist_exists.jl")
 include("moment_matching.jl")
 include("quantile_matching.jl")
 include("partial_dist.jl")

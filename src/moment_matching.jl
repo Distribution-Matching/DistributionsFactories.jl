@@ -1,4 +1,4 @@
-# `exists_dist_from_mean_var` methods live in exists_dist.jl (included earlier
+# `exists_dist_from_mean_var` methods live in dist_exists.jl (included earlier
 # in DistributionsFactories.jl); this file owns the constructors below.
 
 
