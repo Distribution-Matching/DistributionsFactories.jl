@@ -28,7 +28,8 @@ LocalPreferences.toml
 JuliaLocalPreferences.toml
 
 temp/*
-scripts/
+scripts/*
+!scripts/build_cross_oracle.jl
 
 **/.ipynb_checkpoints/
 .DS_Store
