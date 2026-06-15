@@ -148,3 +148,17 @@ function test_mean_median_gamma()
     end
     return true
 end
+
+function test_quantiles_inverse_gamma()
+    for (α, θ) in [(2.0, 1.0), (3.5, 2.0), (1.5, 5.0), (5.0, 0.5)]
+        d0 = InverseGamma(α, θ)
+        q1 = quantile(d0, 0.1)
+        q2 = quantile(d0, 0.9)
+        d = dist_from_quantiles(InverseGamma, 0.1, q1, 0.9, q2)
+        if !all(isapprox.(params(d), (α, θ), rtol=1e-5))
+            @info "Mismatch:" α θ params(d)
+            return false
+        end
+    end
+    return true
+end
