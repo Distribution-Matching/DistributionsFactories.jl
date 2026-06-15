@@ -110,24 +110,8 @@ dist_from_quantiles(::Type{Gumbel}, p1::Number, q1::Number, p2::Number, q2::Numb
 
 # --- Two quantiles (2-parameter non-location-scale, numerical) ---
 
-function dist_from_quantiles(::Type{Gamma}, p1::Number, q1::Number, p2::Number, q2::Number)
-    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
-    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
-    q1 > 0 && q2 > 0 || throw(DomainError("Gamma: quantiles must be > 0"))
-
-    # Gamma is a scale family: for any α, set θ = q1 / quantile(Gamma(α,1), p1).
-    # Work in log-space to keep α > 0.
-    r = q2 / q1
-    f(logα) = begin
-        α = exp(logα)
-        quantile(Gamma(α, 1.0), p2) / quantile(Gamma(α, 1.0), p1) - r
-    end
-
-    logα_sol = find_zero(f, 0.0)
-    α_sol = exp(logα_sol)
-    θ = q1 / quantile(Gamma(α_sol, 1.0), p1)
-    return Gamma(α_sol, θ)
-end
+dist_from_quantiles(::Type{Gamma}, p1::Number, q1::Number, p2::Number, q2::Number) =
+    _dist_from_quantiles_scale_family(Gamma, p1, q1, p2, q2)
 
 function dist_from_quantiles(::Type{LogNormal}, p1::Number, q1::Number, p2::Number, q2::Number)
     (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
