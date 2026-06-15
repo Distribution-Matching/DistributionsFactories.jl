@@ -48,7 +48,7 @@ end
 
 Construct a 1-parameter distribution `D` such that its `p`-th quantile equals `q`.
 
-Supported distributions: `Exponential`.
+Supported distributions: `Exponential`, `Rayleigh`, `Geometric`, `Chisq`, `Chi`.
 
 See also: [`dist_from_quantiles`](@ref), [`make_dist`](@ref)
 """
@@ -102,9 +102,12 @@ and its `p2`-th quantile equals `q2`.
 
 Currently implemented for:
 - Location-scale families (direct formula): `Normal`, `Laplace`, `Logistic`,
-  `Cauchy`, `Gumbel`.
-- Scale families (closed-form elimination): `LogNormal`, `Weibull`, `Pareto`.
-- Shape-scale families (numerical root-finding): `Gamma`, `Beta`.
+  `Cauchy`, `Gumbel`, `SymTriangularDist`.
+- Scale families (closed-form elimination): `LogNormal`, `Weibull`, `Pareto`,
+  `Frechet`.
+- Scale families (numerical root-finding): `Gamma`, `InverseGamma`.
+- Shape-shape families (numerical root-finding): `Beta`.
+- Bounded (linear solve): `Uniform`.
 
 Other distributions throw `MethodError`. See [`make_dist`](@ref) for the
 public entry point.
