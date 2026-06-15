@@ -17,10 +17,10 @@ end
 # (quantile(D(shape, θ), p) == θ · quantile(D(shape, 1), p)). The ratio
 # q2/q1 eliminates θ, leaving a 1D root-find for the shape (in log-space to
 # keep it positive). `buildD(shape, scale)` constructs the distribution.
-function _dist_from_quantiles_scale_family(buildD, p1::Number, q1::Number, p2::Number, q2::Number; logshape0::Float64=0.0)
+function _dist_from_quantiles_scale_family(buildD, p1::Number, q1::Number, p2::Number, q2::Number; logshape0::Real=0.0)
     (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
     p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
-    q1 > 0 && q2 > 0 || throw(DomainError("quantiles must be > 0"))
+    (q1 > 0 && q2 > 0) || throw(DomainError("quantiles must be > 0"))
     r = q2 / q1
     f(logs) = begin
         s = exp(logs)
@@ -28,7 +28,6 @@ function _dist_from_quantiles_scale_family(buildD, p1::Number, q1::Number, p2::N
     end
     logs_sol = find_zero(f, logshape0)
     shape = exp(logs_sol)
-    shape > 0 || throw(DomainError("quantile spec implies non-positive shape"))
     θ = q1 / quantile(buildD(shape, 1.0), p1)
     θ > 0 || throw(DomainError("quantile spec implies non-positive scale"))
     return buildD(shape, θ)
@@ -170,7 +169,7 @@ function dist_from_quantiles(::Type{Pareto}, p1::Number, q1::Number, p2::Number,
 end
 
 dist_from_quantiles(::Type{InverseGamma}, p1::Number, q1::Number, p2::Number, q2::Number) =
-    _dist_from_quantiles_scale_family((α, θ) -> InverseGamma(α, θ), p1, q1, p2, q2)
+    _dist_from_quantiles_scale_family(InverseGamma, p1, q1, p2, q2)
 
 function dist_from_quantiles(::Type{Beta}, p1::Number, q1::Number, p2::Number, q2::Number)
     (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
