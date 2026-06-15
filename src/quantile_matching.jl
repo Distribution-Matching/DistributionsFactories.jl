@@ -35,6 +35,14 @@ end
 
 # --- Single quantile (1-parameter distributions) ---
 
+# Single-parameter families: solve quantile(buildD(θ), p) == q for the lone
+# parameter θ > 0, in log-space. `buildD(θ)` constructs the distribution.
+function _dist_from_quantile_root1d(buildD, p::Number, q::Number; x0::Real=1.0)
+    (0 < p < 1) || throw(DomainError(p, "p must be in (0,1)"))
+    logθ = find_zero(lt -> quantile(buildD(exp(lt)), p) - q, log(x0))
+    return buildD(exp(logθ))
+end
+
 """
     dist_from_quantile(D, p, q)
 
@@ -72,6 +80,11 @@ function dist_from_quantile(::Type{Geometric}, p::Number, q::Number)
     0 < prob < 1 || throw(DomainError((p, q),
         "Geometric: derived prob=$prob outside (0,1) — quantile spec degenerate"))
     return Geometric(prob)
+end
+
+function dist_from_quantile(::Type{Chisq}, p::Number, q::Number)
+    q > 0 || throw(DomainError(q, "Chisq: quantile must be > 0"))
+    return _dist_from_quantile_root1d(Chisq, p, q)
 end
 
 # --- Two quantiles (2-parameter distributions) ---
