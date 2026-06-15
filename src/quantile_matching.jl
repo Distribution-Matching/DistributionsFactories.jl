@@ -108,6 +108,9 @@ dist_from_quantiles(::Type{Cauchy}, p1::Number, q1::Number, p2::Number, q2::Numb
 dist_from_quantiles(::Type{Gumbel}, p1::Number, q1::Number, p2::Number, q2::Number) =
     _dist_from_quantiles_location_scale(Gumbel, p1, q1, p2, q2)
 
+dist_from_quantiles(::Type{SymTriangularDist}, p1::Number, q1::Number, p2::Number, q2::Number) =
+    _dist_from_quantiles_location_scale(SymTriangularDist, p1, q1, p2, q2)
+
 # --- Two quantiles (2-parameter non-location-scale, numerical) ---
 
 dist_from_quantiles(::Type{Gamma}, p1::Number, q1::Number, p2::Number, q2::Number) =

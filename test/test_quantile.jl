@@ -190,3 +190,17 @@ function test_quantiles_frechet()
     end
     return true
 end
+
+function test_quantiles_symtriangular()
+    for (μ, σ) in [(0.0, 1.0), (2.0, 3.0), (-1.0, 0.5), (5.0, 2.0)]
+        d0 = SymTriangularDist(μ, σ)
+        q1 = quantile(d0, 0.1)
+        q2 = quantile(d0, 0.9)
+        d = dist_from_quantiles(SymTriangularDist, 0.1, q1, 0.9, q2)
+        if !all(isapprox.(params(d), (μ, σ), rtol=1e-8, atol=1e-10))
+            @info "Mismatch:" μ σ params(d)
+            return false
+        end
+    end
+    return true
+end
