@@ -26,7 +26,20 @@ function _dist_from_quantiles_scale_family(buildD, p1::Number, q1::Number, p2::N
         s = exp(logs)
         quantile(buildD(s, 1.0), p2) / quantile(buildD(s, 1.0), p1) - r
     end
-    logs_sol = find_zero(f, logshape0)
+    # `f` is monotone in log-shape, so bracket the root by expanding outward
+    # from `logshape0` and solve with a guaranteed-convergent bracketing
+    # method. A plain secant start (`find_zero(f, logshape0)`) overshoots into
+    # invalid shapes for small shape parameters (e.g. InverseGamma/Gamma α ≲ 0.4).
+    lo = float(logshape0) - 1.0
+    hi = float(logshape0) + 1.0
+    step = 1.0
+    while f(lo) * f(hi) > 0
+        step *= 2
+        step > 100 && throw(DomainError("quantile spec: no scale-family solution found"))
+        lo = float(logshape0) - step
+        hi = float(logshape0) + step
+    end
+    logs_sol = find_zero(f, (lo, hi))
     shape = exp(logs_sol)
     θ = q1 / quantile(buildD(shape, 1.0), p1)
     θ > 0 || throw(DomainError("quantile spec implies non-positive scale"))

@@ -150,7 +150,9 @@ function test_mean_median_gamma()
 end
 
 function test_quantiles_inverse_gamma()
-    for (α, θ) in [(2.0, 1.0), (3.5, 2.0), (1.5, 5.0), (5.0, 0.5)]
+    # Includes small-shape (α < 1) heavy-tailed cases: the scale-family solver
+    # must bracket the root rather than overshoot into invalid shapes.
+    for (α, θ) in [(0.2, 1.0), (0.3, 2.0), (2.0, 1.0), (3.5, 2.0), (1.5, 5.0), (5.0, 0.5)]
         d0 = InverseGamma(α, θ)
         q1 = quantile(d0, 0.1)
         q2 = quantile(d0, 0.9)
