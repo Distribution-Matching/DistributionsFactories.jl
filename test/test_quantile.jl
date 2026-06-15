@@ -234,3 +234,12 @@ function test_quantile_chi()
     end
     return true
 end
+
+function test_quantiles_make_dist_cdf()
+    # Public entry point + equal-tail prior recipe: 1% below 0.5, 1% above 50.
+    d = make_dist(InverseGamma, quantiles=[(0.01, 0.5), (0.99, 50.0)])
+    ok_cdf = isapprox(cdf(d, 0.5), 0.01, atol=1e-6) &&
+             isapprox(cdf(d, 50.0), 0.99, atol=1e-6)
+    ok_exists = dist_exists(InverseGamma, quantiles=[(0.01, 0.5), (0.99, 50.0)]) === true
+    return ok_cdf && ok_exists
+end

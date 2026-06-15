@@ -79,6 +79,23 @@ end
     @test test_mean_median_gamma()
 end
 
+@testset "Quantile construction expansion" begin
+    @test test_quantiles_inverse_gamma()
+    @test test_quantiles_frechet()
+    @test test_quantiles_uniform()
+    @test test_quantiles_symtriangular()
+    @test test_quantile_chisq()
+    @test test_quantile_chi()
+    @test test_quantiles_make_dist_cdf()
+
+    # Error paths
+    @test_throws DomainError dist_from_quantiles(InverseGamma, 0.5, 1.0, 0.5, 2.0)  # p1 == p2
+    @test_throws DomainError dist_from_quantiles(Frechet, 0.1, -1.0, 0.9, 2.0)      # q ≤ 0
+    @test_throws DomainError dist_from_quantiles(Uniform, 0.25, 5.0, 0.75, 1.0)     # reversed → width ≤ 0
+    @test_throws DomainError dist_from_quantile(Chisq, 1.2, 1.0)                     # p ∉ (0,1)
+    @test_throws DomainError dist_from_quantile(Chi, 0.5, -1.0)                      # q ≤ 0
+end
+
 @testset "available_distributions" begin
     @test test_available_by_interval()
     @test test_available_by_realinterval()
