@@ -87,6 +87,11 @@ function dist_from_quantile(::Type{Chisq}, p::Number, q::Number)
     return _dist_from_quantile_root1d(Chisq, p, q)
 end
 
+function dist_from_quantile(::Type{Chi}, p::Number, q::Number)
+    q > 0 || throw(DomainError(q, "Chi: quantile must be > 0"))
+    return _dist_from_quantile_root1d(Chi, p, q)
+end
+
 # --- Two quantiles (2-parameter distributions) ---
 
 """

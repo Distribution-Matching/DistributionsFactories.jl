@@ -219,3 +219,18 @@ function test_quantile_chisq()
     end
     return true
 end
+
+function test_quantile_chi()
+    for k in [1.5, 3.0, 7.2, 10.0]
+        d0 = Chi(k)
+        for p in [0.2, 0.5, 0.8]
+            q = quantile(d0, p)
+            d = dist_from_quantile(Chi, p, q)
+            if !isapprox(params(d)[1], k, rtol=1e-5)
+                @info "Mismatch:" k p params(d)
+                return false
+            end
+        end
+    end
+    return true
+end
