@@ -155,6 +155,22 @@ end
 dist_from_quantiles(::Type{InverseGamma}, p1::Number, q1::Number, p2::Number, q2::Number) =
     _dist_from_quantiles_scale_family(InverseGamma, p1, q1, p2, q2)
 
+function dist_from_quantiles(::Type{Frechet}, p1::Number, q1::Number, p2::Number, q2::Number)
+    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
+    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
+    (q1 > 0 && q2 > 0) || throw(DomainError("Frechet: quantiles must be > 0"))
+    # Frechet(α, θ) has quantile q = θ·(-log p)^(-1/α). Take logs and eliminate θ:
+    # log(q2/q1) = -(1/α)·(log(-log p2) - log(-log p1)). Solve for α closed-form.
+    A1 = log(-log(p1))
+    A2 = log(-log(p2))
+    denom = log(q1) - log(q2)
+    denom != 0 || throw(DomainError("Frechet: quantiles must be distinct"))
+    α = (A2 - A1) / denom
+    α > 0 || throw(DomainError("Frechet: quantile spec implies non-positive shape"))
+    θ = q1 * (-log(p1))^(1 / α)
+    return Frechet(α, θ)
+end
+
 function dist_from_quantiles(::Type{Beta}, p1::Number, q1::Number, p2::Number, q2::Number)
     (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
     p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))

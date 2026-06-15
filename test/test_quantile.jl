@@ -162,3 +162,17 @@ function test_quantiles_inverse_gamma()
     end
     return true
 end
+
+function test_quantiles_frechet()
+    for (α, θ) in [(2.0, 3.0), (1.5, 1.0), (4.0, 2.5), (0.8, 5.0)]
+        d0 = Frechet(α, θ)
+        q1 = quantile(d0, 0.25)
+        q2 = quantile(d0, 0.75)
+        d = dist_from_quantiles(Frechet, 0.25, q1, 0.75, q2)
+        if !all(isapprox.(params(d), (α, θ), rtol=1e-6))
+            @info "Mismatch:" α θ params(d)
+            return false
+        end
+    end
+    return true
+end
