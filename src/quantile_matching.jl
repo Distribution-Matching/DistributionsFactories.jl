@@ -17,14 +17,14 @@ end
 # (quantile(D(shape, θ), p) == θ · quantile(D(shape, 1), p)). The ratio
 # q2/q1 eliminates θ, leaving a 1D root-find for the shape (in log-space to
 # keep it positive). `buildD(shape, scale)` constructs the distribution.
-function _dist_from_quantiles_scale_family(buildD, p1::Number, q1::Number, p2::Number, q2::Number; logshape0::Real=0.0)
+function _dist_from_quantiles_scale_family(::Type{D}, p1::Number, q1::Number, p2::Number, q2::Number; logshape0::Real=0.0) where {D}
     (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
     p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
     (q1 > 0 && q2 > 0) || throw(DomainError("quantiles must be > 0"))
     r = q2 / q1
     f(logs) = begin
         s = exp(logs)
-        quantile(buildD(s, 1.0), p2) / quantile(buildD(s, 1.0), p1) - r
+        quantile(D(s, 1.0), p2) / quantile(D(s, 1.0), p1) - r
     end
     # `f` is monotone in log-shape, so bracket the root by expanding outward
     # from `logshape0` and solve with a guaranteed-convergent bracketing
@@ -41,19 +41,19 @@ function _dist_from_quantiles_scale_family(buildD, p1::Number, q1::Number, p2::N
     end
     logs_sol = find_zero(f, (lo, hi))
     shape = exp(logs_sol)
-    θ = q1 / quantile(buildD(shape, 1.0), p1)
+    θ = q1 / quantile(D(shape, 1.0), p1)
     θ > 0 || throw(DomainError("quantile spec implies non-positive scale"))
-    return buildD(shape, θ)
+    return D(shape, θ)
 end
 
 # --- Single quantile (1-parameter distributions) ---
 
 # Single-parameter families: solve quantile(buildD(θ), p) == q for the lone
 # parameter θ > 0, in log-space. `buildD(θ)` constructs the distribution.
-function _dist_from_quantile_root1d(buildD, p::Number, q::Number; x0::Real=1.0)
+function _dist_from_quantile_root1d(::Type{D}, p::Number, q::Number; x0::Real=1.0) where {D}
     (0 < p < 1) || throw(DomainError(p, "p must be in (0,1)"))
-    logθ = find_zero(lt -> quantile(buildD(exp(lt)), p) - q, log(x0))
-    return buildD(exp(logθ))
+    logθ = find_zero(lt -> quantile(D(exp(lt)), p) - q, log(x0))
+    return D(exp(logθ))
 end
 
 """

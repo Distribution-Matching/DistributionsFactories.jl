@@ -86,6 +86,7 @@ end
     @test test_quantiles_symtriangular()
     @test test_quantile_chisq()
     @test test_quantile_chi()
+    @test test_quantile_type_stability()
     @test test_quantiles_make_dist_cdf()
 
     # Error paths

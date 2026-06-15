@@ -237,6 +237,27 @@ function test_quantile_chi()
     return true
 end
 
+function test_quantile_type_stability()
+    # Helper-based constructors must infer a concrete parametric type
+    # (e.g. InverseGamma{Float64}), not the abstract UnionAll. Regression
+    # guard for the scale-family / root1d helpers, which previously took the
+    # distribution type as an un-specialized positional argument.
+    checks = Any[
+        (dist_from_quantiles, Tuple{Type{InverseGamma},Float64,Float64,Float64,Float64}),
+        (dist_from_quantiles, Tuple{Type{Gamma},Float64,Float64,Float64,Float64}),
+        (dist_from_quantile,  Tuple{Type{Chisq},Float64,Float64}),
+        (dist_from_quantile,  Tuple{Type{Chi},Float64,Float64}),
+    ]
+    for (f, sig) in checks
+        rt = Base.return_types(f, sig)[1]
+        if !isconcretetype(rt)
+            @info "Type-unstable inferred return:" f sig rt
+            return false
+        end
+    end
+    return true
+end
+
 function test_quantiles_make_dist_cdf()
     # Public entry point + equal-tail prior recipe: 1% below 0.5, 1% above 50.
     d = make_dist(InverseGamma, quantiles=[(0.01, 0.5), (0.99, 50.0)])
