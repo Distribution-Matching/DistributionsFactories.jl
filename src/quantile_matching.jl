@@ -152,6 +152,17 @@ function dist_from_quantiles(::Type{Pareto}, p1::Number, q1::Number, p2::Number,
     return Pareto(α, θ)
 end
 
+function dist_from_quantiles(::Type{Uniform}, p1::Number, q1::Number, p2::Number, q2::Number)
+    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
+    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
+    # quantile(Uniform(a,b), p) = a + p·(b-a). Solve the 2×2 linear system.
+    w = (q2 - q1) / (p2 - p1)          # width b - a
+    w > 0 || throw(DomainError("Uniform: quantile spec implies non-positive width"))
+    a = q1 - p1 * w
+    b = a + w
+    return Uniform(a, b)
+end
+
 dist_from_quantiles(::Type{InverseGamma}, p1::Number, q1::Number, p2::Number, q2::Number) =
     _dist_from_quantiles_scale_family(InverseGamma, p1, q1, p2, q2)
 

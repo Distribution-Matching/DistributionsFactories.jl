@@ -163,6 +163,20 @@ function test_quantiles_inverse_gamma()
     return true
 end
 
+function test_quantiles_uniform()
+    for (a, b) in [(0.0, 1.0), (-2.0, 5.0), (3.0, 10.0), (-7.0, -1.0)]
+        d0 = Uniform(a, b)
+        q1 = quantile(d0, 0.2)
+        q2 = quantile(d0, 0.8)
+        d = dist_from_quantiles(Uniform, 0.2, q1, 0.8, q2)
+        if !all(isapprox.(params(d), (a, b), rtol=1e-8, atol=1e-10))
+            @info "Mismatch:" a b params(d)
+            return false
+        end
+    end
+    return true
+end
+
 function test_quantiles_frechet()
     for (α, θ) in [(2.0, 3.0), (1.5, 1.0), (4.0, 2.5), (0.8, 5.0)]
         d0 = Frechet(α, θ)
