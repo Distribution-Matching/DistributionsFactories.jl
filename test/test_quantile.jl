@@ -148,3 +148,121 @@ function test_mean_median_gamma()
     end
     return true
 end
+
+function test_quantiles_inverse_gamma()
+    # Includes small-shape (α < 1) heavy-tailed cases: the scale-family solver
+    # must bracket the root rather than overshoot into invalid shapes.
+    for (α, θ) in [(0.2, 1.0), (0.3, 2.0), (2.0, 1.0), (3.5, 2.0), (1.5, 5.0), (5.0, 0.5)]
+        d0 = InverseGamma(α, θ)
+        q1 = quantile(d0, 0.1)
+        q2 = quantile(d0, 0.9)
+        d = dist_from_quantiles(InverseGamma, 0.1, q1, 0.9, q2)
+        if !all(isapprox.(params(d), (α, θ), rtol=1e-5))
+            @info "Mismatch:" α θ params(d)
+            return false
+        end
+    end
+    return true
+end
+
+function test_quantiles_uniform()
+    for (a, b) in [(0.0, 1.0), (-2.0, 5.0), (3.0, 10.0), (-7.0, -1.0)]
+        d0 = Uniform(a, b)
+        q1 = quantile(d0, 0.2)
+        q2 = quantile(d0, 0.8)
+        d = dist_from_quantiles(Uniform, 0.2, q1, 0.8, q2)
+        if !all(isapprox.(params(d), (a, b), rtol=1e-8, atol=1e-10))
+            @info "Mismatch:" a b params(d)
+            return false
+        end
+    end
+    return true
+end
+
+function test_quantiles_frechet()
+    for (α, θ) in [(2.0, 3.0), (1.5, 1.0), (4.0, 2.5), (0.8, 5.0)]
+        d0 = Frechet(α, θ)
+        q1 = quantile(d0, 0.25)
+        q2 = quantile(d0, 0.75)
+        d = dist_from_quantiles(Frechet, 0.25, q1, 0.75, q2)
+        if !all(isapprox.(params(d), (α, θ), rtol=1e-6))
+            @info "Mismatch:" α θ params(d)
+            return false
+        end
+    end
+    return true
+end
+
+function test_quantiles_symtriangular()
+    for (μ, σ) in [(0.0, 1.0), (2.0, 3.0), (-1.0, 0.5), (5.0, 2.0)]
+        d0 = SymTriangularDist(μ, σ)
+        q1 = quantile(d0, 0.1)
+        q2 = quantile(d0, 0.9)
+        d = dist_from_quantiles(SymTriangularDist, 0.1, q1, 0.9, q2)
+        if !all(isapprox.(params(d), (μ, σ), rtol=1e-8, atol=1e-10))
+            @info "Mismatch:" μ σ params(d)
+            return false
+        end
+    end
+    return true
+end
+
+function test_quantile_chisq()
+    for k in [1.5, 3.0, 7.2, 10.0]
+        d0 = Chisq(k)
+        for p in [0.2, 0.5, 0.8]
+            q = quantile(d0, p)
+            d = dist_from_quantile(Chisq, p, q)
+            if !isapprox(params(d)[1], k, rtol=1e-5)
+                @info "Mismatch:" k p params(d)
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function test_quantile_chi()
+    for k in [1.5, 3.0, 7.2, 10.0]
+        d0 = Chi(k)
+        for p in [0.2, 0.5, 0.8]
+            q = quantile(d0, p)
+            d = dist_from_quantile(Chi, p, q)
+            if !isapprox(params(d)[1], k, rtol=1e-5)
+                @info "Mismatch:" k p params(d)
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function test_quantile_type_stability()
+    # Helper-based constructors must infer a concrete parametric type
+    # (e.g. InverseGamma{Float64}), not the abstract UnionAll. Regression
+    # guard for the scale-family / root1d helpers, which previously took the
+    # distribution type as an un-specialized positional argument.
+    checks = Any[
+        (dist_from_quantiles, Tuple{Type{InverseGamma},Float64,Float64,Float64,Float64}),
+        (dist_from_quantiles, Tuple{Type{Gamma},Float64,Float64,Float64,Float64}),
+        (dist_from_quantile,  Tuple{Type{Chisq},Float64,Float64}),
+        (dist_from_quantile,  Tuple{Type{Chi},Float64,Float64}),
+    ]
+    for (f, sig) in checks
+        rt = Base.return_types(f, sig)[1]
+        if !isconcretetype(rt)
+            @info "Type-unstable inferred return:" f sig rt
+            return false
+        end
+    end
+    return true
+end
+
+function test_quantiles_make_dist_cdf()
+    # Public entry point + equal-tail prior recipe: 1% below 0.5, 1% above 50.
+    d = make_dist(InverseGamma, quantiles=[(0.01, 0.5), (0.99, 50.0)])
+    ok_cdf = isapprox(cdf(d, 0.5), 0.01, atol=1e-6) &&
+             isapprox(cdf(d, 50.0), 0.99, atol=1e-6)
+    ok_exists = dist_exists(InverseGamma, quantiles=[(0.01, 0.5), (0.99, 50.0)]) === true
+    return ok_cdf && ok_exists
+end

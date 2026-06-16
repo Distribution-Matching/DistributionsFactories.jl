@@ -13,14 +13,55 @@ function _dist_from_quantiles_location_scale(::Type{D}, p1::Number, q1::Number, 
     return D(μ, s)
 end
 
+# Scale family: shape + scale, where the scale factors out of the quantile
+# (quantile(D(shape, θ), p) == θ · quantile(D(shape, 1), p)). The ratio
+# q2/q1 eliminates θ, leaving a 1D root-find for the shape (in log-space to
+# keep it positive). `buildD(shape, scale)` constructs the distribution.
+function _dist_from_quantiles_scale_family(::Type{D}, p1::Number, q1::Number, p2::Number, q2::Number; logshape0::Real=0.0) where {D}
+    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
+    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
+    (q1 > 0 && q2 > 0) || throw(DomainError("quantiles must be > 0"))
+    r = q2 / q1
+    f(logs) = begin
+        s = exp(logs)
+        quantile(D(s, 1.0), p2) / quantile(D(s, 1.0), p1) - r
+    end
+    # `f` is monotone in log-shape, so bracket the root by expanding outward
+    # from `logshape0` and solve with a guaranteed-convergent bracketing
+    # method. A plain secant start (`find_zero(f, logshape0)`) overshoots into
+    # invalid shapes for small shape parameters (e.g. InverseGamma/Gamma α ≲ 0.4).
+    lo = float(logshape0) - 1.0
+    hi = float(logshape0) + 1.0
+    step = 1.0
+    while f(lo) * f(hi) > 0
+        step *= 2
+        step > 100 && throw(DomainError("quantile spec: no scale-family solution found"))
+        lo = float(logshape0) - step
+        hi = float(logshape0) + step
+    end
+    logs_sol = find_zero(f, (lo, hi))
+    shape = exp(logs_sol)
+    θ = q1 / quantile(D(shape, 1.0), p1)
+    θ > 0 || throw(DomainError("quantile spec implies non-positive scale"))
+    return D(shape, θ)
+end
+
 # --- Single quantile (1-parameter distributions) ---
+
+# Single-parameter families: solve quantile(buildD(θ), p) == q for the lone
+# parameter θ > 0, in log-space. `buildD(θ)` constructs the distribution.
+function _dist_from_quantile_root1d(::Type{D}, p::Number, q::Number; x0::Real=1.0) where {D}
+    (0 < p < 1) || throw(DomainError(p, "p must be in (0,1)"))
+    logθ = find_zero(lt -> quantile(D(exp(lt)), p) - q, log(x0))
+    return D(exp(logθ))
+end
 
 """
     dist_from_quantile(D, p, q)
 
 Construct a 1-parameter distribution `D` such that its `p`-th quantile equals `q`.
 
-Supported distributions: `Exponential`.
+Supported distributions: `Exponential`, `Rayleigh`, `Geometric`, `Chisq`, `Chi`.
 
 See also: [`dist_from_quantiles`](@ref), [`make_dist`](@ref)
 """
@@ -54,6 +95,16 @@ function dist_from_quantile(::Type{Geometric}, p::Number, q::Number)
     return Geometric(prob)
 end
 
+function dist_from_quantile(::Type{Chisq}, p::Number, q::Number)
+    q > 0 || throw(DomainError(q, "Chisq: quantile must be > 0"))
+    return _dist_from_quantile_root1d(Chisq, p, q)
+end
+
+function dist_from_quantile(::Type{Chi}, p::Number, q::Number)
+    q > 0 || throw(DomainError(q, "Chi: quantile must be > 0"))
+    return _dist_from_quantile_root1d(Chi, p, q)
+end
+
 # --- Two quantiles (2-parameter distributions) ---
 
 """
@@ -64,9 +115,12 @@ and its `p2`-th quantile equals `q2`.
 
 Currently implemented for:
 - Location-scale families (direct formula): `Normal`, `Laplace`, `Logistic`,
-  `Cauchy`, `Gumbel`.
-- Scale families (closed-form elimination): `LogNormal`, `Weibull`, `Pareto`.
-- Shape-scale families (numerical root-finding): `Gamma`, `Beta`.
+  `Cauchy`, `Gumbel`, `SymTriangularDist`.
+- Scale families (closed-form elimination): `LogNormal`, `Weibull`, `Pareto`,
+  `Frechet`.
+- Scale families (numerical root-finding): `Gamma`, `InverseGamma`.
+- Shape-shape families (numerical root-finding): `Beta`.
+- Bounded (linear solve): `Uniform`.
 
 Other distributions throw `MethodError`. See [`make_dist`](@ref) for the
 public entry point.
@@ -88,26 +142,13 @@ dist_from_quantiles(::Type{Cauchy}, p1::Number, q1::Number, p2::Number, q2::Numb
 dist_from_quantiles(::Type{Gumbel}, p1::Number, q1::Number, p2::Number, q2::Number) =
     _dist_from_quantiles_location_scale(Gumbel, p1, q1, p2, q2)
 
+dist_from_quantiles(::Type{SymTriangularDist}, p1::Number, q1::Number, p2::Number, q2::Number) =
+    _dist_from_quantiles_location_scale(SymTriangularDist, p1, q1, p2, q2)
+
 # --- Two quantiles (2-parameter non-location-scale, numerical) ---
 
-function dist_from_quantiles(::Type{Gamma}, p1::Number, q1::Number, p2::Number, q2::Number)
-    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
-    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
-    q1 > 0 && q2 > 0 || throw(DomainError("Gamma: quantiles must be > 0"))
-
-    # Gamma is a scale family: for any α, set θ = q1 / quantile(Gamma(α,1), p1).
-    # Work in log-space to keep α > 0.
-    r = q2 / q1
-    f(logα) = begin
-        α = exp(logα)
-        quantile(Gamma(α, 1.0), p2) / quantile(Gamma(α, 1.0), p1) - r
-    end
-
-    logα_sol = find_zero(f, 0.0)
-    α_sol = exp(logα_sol)
-    θ = q1 / quantile(Gamma(α_sol, 1.0), p1)
-    return Gamma(α_sol, θ)
-end
+dist_from_quantiles(::Type{Gamma}, p1::Number, q1::Number, p2::Number, q2::Number) =
+    _dist_from_quantiles_scale_family(Gamma, p1, q1, p2, q2)
 
 function dist_from_quantiles(::Type{LogNormal}, p1::Number, q1::Number, p2::Number, q2::Number)
     (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
@@ -146,6 +187,36 @@ function dist_from_quantiles(::Type{Pareto}, p1::Number, q1::Number, p2::Number,
     α > 0 || throw(DomainError("Pareto: quantile spec implies non-positive shape"))
     θ = q1 * (1 - p1)^(1 / α)
     return Pareto(α, θ)
+end
+
+function dist_from_quantiles(::Type{Uniform}, p1::Number, q1::Number, p2::Number, q2::Number)
+    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
+    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
+    # quantile(Uniform(a,b), p) = a + p·(b-a). Solve the 2×2 linear system.
+    w = (q2 - q1) / (p2 - p1)          # width b - a
+    w > 0 || throw(DomainError("Uniform: quantile spec implies non-positive width"))
+    a = q1 - p1 * w
+    b = a + w
+    return Uniform(a, b)
+end
+
+dist_from_quantiles(::Type{InverseGamma}, p1::Number, q1::Number, p2::Number, q2::Number) =
+    _dist_from_quantiles_scale_family(InverseGamma, p1, q1, p2, q2)
+
+function dist_from_quantiles(::Type{Frechet}, p1::Number, q1::Number, p2::Number, q2::Number)
+    (0 < p1 < 1 && 0 < p2 < 1) || throw(DomainError("p values must be in (0,1)"))
+    p1 ≠ p2 || throw(DomainError("p1 and p2 must be distinct"))
+    (q1 > 0 && q2 > 0) || throw(DomainError("Frechet: quantiles must be > 0"))
+    # Frechet(α, θ) has quantile q = θ·(-log p)^(-1/α). Take logs and eliminate θ:
+    # log(q2/q1) = -(1/α)·(log(-log p2) - log(-log p1)). Solve for α closed-form.
+    A1 = log(-log(p1))
+    A2 = log(-log(p2))
+    denom = log(q1) - log(q2)
+    denom != 0 || throw(DomainError("Frechet: quantiles must be distinct"))
+    α = (A2 - A1) / denom
+    α > 0 || throw(DomainError("Frechet: quantile spec implies non-positive shape"))
+    θ = q1 * (-log(p1))^(1 / α)
+    return Frechet(α, θ)
 end
 
 function dist_from_quantiles(::Type{Beta}, p1::Number, q1::Number, p2::Number, q2::Number)
