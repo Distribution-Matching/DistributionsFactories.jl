@@ -19,6 +19,14 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
+        # Julia 1.9 binaries need an executable stack, which the current
+        # ubuntu-latest image refuses; test 1.9 on Linux on 22.04 instead.
+        exclude:
+          - version: '1.9'
+            os: ubuntu-latest
+        include:
+          - version: '1.9'
+            os: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
