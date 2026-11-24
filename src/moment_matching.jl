@@ -415,13 +415,16 @@ end
     dist_from_mean_var(d::Truncated{<:Normal}, μ̄, σ̄²)
 
 Numerical. Construct a truncated Normal on `extrema(d)` with the given
-moments. Two-sided uses the standardize-to-`[-0.5, 0.5]` 2D Newton solver;
-one-sided uses the standardize-to-`[0, ∞)` half-truncated solver.
+moments, via [`truncated_locscale_params`](@ref) (closed-form moments,
+Newton with an exact Jacobian). Throws [`InfeasibleMomentsError`](@ref)
+outside the feasible region.
 """
 function dist_from_mean_var(d::Truncated{<:Normal}, μ̄::Number, σ̄²::Number)
     _require_dist_from_mean_var(d, μ̄, σ̄²)
     lo, hi = extrema(d)
-    return _dispatch_truncated_locscale_factory(Normal, lo, hi, μ̄, σ̄²)
+    isfinite(lo) || isfinite(hi) || return dist_from_mean_var(Normal, μ̄, σ̄²)
+    μ, σ = truncated_locscale_params(Normal, lo, hi, μ̄, σ̄²)
+    return truncated(Normal(μ, σ), lo, hi)
 end
 
 """
@@ -449,26 +452,23 @@ end
 """
     dist_from_mean_var(d::Truncated{<:TDist}, μ̄, σ̄²)
 
-Numerical (2D Newton) for half-truncated location-scale Student-t. The ν is
-taken from the template's parent. Two-sided is not yet implemented (open
-follow-up: tight Pareto-tail dome and corresponding solver).
+Numerical. Construct a truncated location-scale Student-t on `extrema(d)`,
+with ν taken from the template's parent, via
+[`truncated_locscale_params`](@ref). One- and two-sided truncation are
+supported. Throws [`InfeasibleMomentsError`](@ref) for infeasible targets;
+for the two-sided case, whose exact feasible region is not yet
+characterised (GitHub issue #1), also when the solver does not converge.
 """
 function dist_from_mean_var(d::Truncated{<:TDist}, μ̄::Number, σ̄²::Number)
     _require_dist_from_mean_var(d, μ̄, σ̄²)
     ν = dof(d.untruncated)
     lo, hi = extrema(d)
-    if isfinite(lo) && isfinite(hi)
-        throw(ArgumentError(
-            "Two-sided Truncated{<:TDist} factory is not yet implemented " *
-            "(only feasibility predicate). See GitHub issue #1."))
-    elseif isfinite(lo)
-        return _solve_truncated_tdist_half_below(ν, lo, Float64(μ̄), Float64(σ̄²))
-    elseif isfinite(hi)
-        return _solve_truncated_tdist_half_above(ν, hi, Float64(μ̄), Float64(σ̄²))
-    else
+    if !isfinite(lo) && !isfinite(hi)
         # Both infinite: untruncated. Delegate to instance dispatch.
         return dist_from_mean_var(d.untruncated, μ̄, σ̄²)
     end
+    μ, σ = truncated_locscale_params(TDist(ν), lo, hi, μ̄, σ̄²)
+    return truncated(μ + σ * TDist(ν), lo, hi)
 end
 
 function dist_from_mean_var(::Type{TriangularDist}, μ̄::Number, σ̄²::Number)

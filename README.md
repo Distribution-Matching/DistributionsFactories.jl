@@ -40,6 +40,9 @@ mean(d), std(d)    # (1.0, 0.8)  — moments after truncation
 d.untruncated      # Normal(μ ≈ 0.9822, σ ≈ 0.8232)
                    # — parent solved so the truncated distribution hits the request
 
+# Truncated location-scale Student-t (one- or two-sided)
+d = make_dist(truncated(TDist(4.5); lower=-1, upper=2), mean=0.3, var=0.4)
+
 # From a single quantile
 d = make_dist(Exponential, median=2.0)
 
@@ -302,14 +305,41 @@ The following table lists all distributions covered by the package. **Yes** = fu
 | 36 | Discrete Sym. Triangular | {0, …, n} | 0 | No | | |
 | 37 | Truncated Poisson | {0, …, n} | 1 | No | | |
 
+### Truncated Normal and Student-t: fast low-level API
+
+For inner loops, two functions work with plain numbers and build no
+distribution object. `family` is `Normal` or `TDist(ν)` (any `ν > 0`), and
+either bound may be infinite:
+
+```julia
+m, v = truncated_locscale_moments(Normal, μ, σ, a, b)      # moments of μ + σX on [a, b]
+μ, σ = truncated_locscale_params(TDist(4.5), a, b, m, v)   # inverse: match (m, v)
+```
+
+- The moments use closed forms (φ/Φ for the Normal; for the t, the identity
+  d/dt[(ν + t²) f_ν(t)] = -(ν - 1) t f_ν(t) gives the mean and, after an
+  integration by parts, the second moment), with Gauss–Legendre quadrature in
+  the regimes where the closed forms cancel (far tails, intervals narrow
+  relative to σ, ν ≥ 200). They are accurate to about 1e-13 throughout and
+  generic over `Real`, so they work with ForwardDiff.
+- The solver standardises to `[-1/2, 1/2]` or `[0, ∞)` and runs damped Newton
+  with an exact (ForwardDiff) Jacobian. The Normal is solved in its natural
+  parameters, which stays well conditioned up to the boundary of the feasible
+  region. A solve takes about 1–8 µs for the Normal and 4–10 µs for the t
+  (see `benchmark/truncated_locscale.jl`).
+- Infeasible targets throw `InfeasibleMomentsError`, which callers can catch
+  specifically. For the two-sided t, whose exact feasible region is not yet
+  characterised (issue #1), it is also thrown, with `proven = false`, when
+  Newton does not converge. `make_dist` on truncated Normal, Laplace,
+  Logistic and Student-t templates throws the same error (it threw
+  `DomainError` before 0.2.0).
+
 ### Experimental / work in progress
 
 The following have initial code but are not fully validated:
 
-- **Truncated Normal on [a,b]** — 2D Newton solver with quadrature. Passes basic tests.
-- **Truncated Gamma on [a,b]** — same solver. Passes basic tests.
-- **Truncated Laplace on [a,b]** — same solver. Not yet tested end-to-end.
-- **Truncated Logistic on [a,b]** — same solver. Not yet tested end-to-end.
+- **Truncated Gamma on [a,b]** — 2D Newton solver with quadrature. Passes basic tests.
+- **Truncated Laplace and Logistic on [a,b]** — same solver; validated by round trips.
 
 ## Algorithms
 
@@ -317,7 +347,8 @@ The following have initial code but are not fully validated:
 |---|---|
 | Direct formula | Normal, Beta, Gamma, Logistic, Laplace, Gumbel, LogNormal, Pareto, InverseGamma, FDist, Chi, Rayleigh, Chisq, Exponential, Erlang, SymTriangularDist, Uniform, Binomial, DiscreteUniform, Poisson, NegativeBinomial, Geometric |
 | Numerical root-finding | Weibull, Frechet (beta-ratio equation) |
-| 2D Newton iteration | Folded Normal, Truncated distributions (experimental) |
+| 2D Newton iteration | Folded Normal, Truncated Laplace, Logistic, Gamma |
+| Closed-form moments + Newton with exact Jacobian | Truncated Normal, truncated Student-t |
 | Numerical root-finding | `DistSpec` — solving free parameters from moments |
 | Location-scale formula | Quantile matching for Normal, Laplace, Logistic, Cauchy, Gumbel |
 | Numerical root-finding | Quantile matching for Gamma, Beta |

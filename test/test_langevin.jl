@@ -125,7 +125,8 @@ function test_truncated_logistic_langevin_rejects_above_dome()
 end
 
 function test_dist_from_mean_var_truncated_rejects_above_dome()
-    # dist_from_mean_var on the three families now calls the existence check first.
+    # dist_from_mean_var on the three families now calls the existence check
+    # first, and throws the dedicated InfeasibleMomentsError (0.2.0).
     for D in (Normal, Laplace, Logistic)
         d = truncated(D(), -0.5, 0.5)
         μ̄ = 0.2
@@ -134,7 +135,7 @@ function test_dist_from_mean_var_truncated_rejects_above_dome()
             dist_from_mean_var(d, μ̄, σ²_max * 1.2)
             return false
         catch e
-            e isa DomainError || return false
+            e isa InfeasibleMomentsError || return false
         end
     end
     return true

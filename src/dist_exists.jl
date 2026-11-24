@@ -41,6 +41,22 @@ function _require_dist_from_mean_var(D, μ̄::Number, σ̄²::Number)
     return nothing
 end
 
+# Truncated location-scale families throw the dedicated InfeasibleMomentsError
+# (a breaking change in 0.2.0; previously DomainError), so that callers can
+# catch infeasibility specifically and fall back.
+const _TruncatedLocScaleTemplate =
+    Truncated{<:Union{Normal, Laplace, Logistic, TDist}}
+
+function _require_dist_from_mean_var(d::_TruncatedLocScaleTemplate,
+                                     μ̄::Number, σ̄²::Number)
+    reason = _why_not_dist_from_mean_var(d, μ̄, σ̄²)
+    isnothing(reason) && return nothing
+    lo, hi = extrema(d)
+    fam = d.untruncated isa TDist ? "TDist($(dof(d.untruncated)))" :
+                                    string(nameof(typeof(d.untruncated)))
+    throw(InfeasibleMomentsError(fam, lo, hi, Float64(μ̄), Float64(σ̄²), true, reason))
+end
+
 # Shared across every continuous dist: σ̄² must be strictly positive.
 function _why_not_positive_var(name, σ̄²)
     σ̄² > 0 || return "$name: the condition σ̄² > 0 is not satisfied"
@@ -308,15 +324,16 @@ end
 function _why_not_dist_from_mean_var(d::Truncated{<:TDist}, μ̄::Number, σ̄²::Number)
     r = _why_not_positive_var("TDist", σ̄²); isnothing(r) || return r
     ν = dof(d.untruncated)
-    ν > 2 || return "Truncated TDist: requires ν > 2 for variance to exist (got ν=$ν)"
     lo, hi = extrema(d)
     if isfinite(lo) && isfinite(hi)
+        # Every ν > 0 has finite moments on a bounded interval.
         # Two-sided: defer to the doubly-truncated polynomial-tail dome
         # (not yet implemented as a feasibility predicate). Fall back to the
         # universal Bhatia–Davis ceiling, which is loose but correct.
         σ̄² < (hi - μ̄) * (μ̄ - lo) || return "Truncated TDist on [$lo, $hi]: σ̄² must be < (hi-μ̄)(μ̄-lo) (Bhatia–Davis universal bound; tight Pareto-tail dome not yet implemented)"
         return nothing
     end
+    ν > 2 || return "Truncated TDist on an unbounded interval: requires ν > 2 for the variance to exist (got ν=$ν)"
     cap = ν / (ν - 2)
     if isfinite(lo) && !isfinite(hi)
         μ̄ > lo || return "Truncated TDist: μ̄ must be > lo=$lo"
