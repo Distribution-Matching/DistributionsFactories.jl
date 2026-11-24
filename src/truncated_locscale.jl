@@ -142,6 +142,36 @@ function _gl_moments(Δℓ, slo, shi)
     return δ, S2 / Z
 end
 
+# Integral of f over [lo, hi] (lo ≤ 0 ≤ hi, both finite) by composite
+# Gauss–Legendre on geometric panels with edges 0, ±1, ±2, ±4, …, so that
+# slowly decaying (heavy-tailed) integrands on very wide intervals are
+# resolved. Generic over Real (no adaptive step selection on Duals).
+function _gl_panels(f, lo, hi)
+    acc = zero(f(zero(promote_type(typeof(lo), typeof(hi)))))
+    for (sgn, L) in ((1, hi), (-1, -lo))
+        x0 = 0.0
+        while x0 < L
+            x1f = max(1.0, 2x0)
+            last = x1f ≥ L
+            x1 = last ? L : x1f
+            h = (x1 - x0) / 2; c = (x1 + x0) / 2
+            @inbounds for i in eachindex(_GL_NODES)
+                acc += h * _GL_WEIGHTS[i] * f(sgn * (c + h * _GL_NODES[i]))
+            end
+            last && break
+            x0 = x1f
+        end
+    end
+    return acc
+end
+
+function _gl_panels_moments(Δℓ, lo, hi)
+    f(s) = exp(Δℓ(s))
+    Z = _gl_panels(f, lo, hi)
+    δ = _gl_panels(s -> s * f(s), lo, hi) / Z
+    return δ, _gl_panels(s -> (s - δ)^2 * f(s), lo, hi) / Z
+end
+
 # ---------------------------------------------------------------- standard laws
 
 # Densities and (complementary) CDFs. The CDFs are evaluated in Float64 and,
@@ -218,11 +248,9 @@ _Δℓ(ν::Real, r) = s -> -(ν + 1) / 2 * log1p(s * (2r + s) / (ν + r^2))
 _window(::_NormalKey, r) = sqrt(r^2 + 2_GL_DROP)
 _window(ν::Real, r) = sqrt(ν * ((1 + r^2 / ν) * exp(2_GL_DROP / (ν + 1)) - 1))
 
-# A bounded interval that is narrow on the scale of the law (width ≤ 1), or
-# narrow relative to its distance from 0, is handled by quadrature: there the
-# closed forms cancel and the integrand is smooth.
-
-# t on a bounded interval with ν at a pole of the closed forms.
+# ν at a pole of the t closed forms (only relevant on a bounded interval:
+# with an infinite end, ν > 2 and the pole at ν = 2 is a genuine divergence
+# of the variance, which the closed form captures).
 _near_pole(::_NormalKey) = false
 _near_pole(ν::Real) = abs(ν - 1) < 1e-4 || abs(ν - 2) < 1e-4
 
@@ -245,18 +273,18 @@ function _std_moments(fam, α, β, slo, shi)
     Δℓ = _Δℓ(fam, r)
     R = _window(fam, r)
     lo, hi = max(slo, -R - r), min(shi, R - r)
-    narrow = isfinite(slo) && isfinite(shi) &&
+    bounded = isfinite(slo) && isfinite(shi)
+    # A bounded interval that is narrow on the scale of the law (width ≤ 1),
+    # or narrow relative to its distance from 0: the closed forms cancel and
+    # the integrand is smooth on the window.
+    narrow = bounded &&
              (shi - slo ≤ 1 || (α * β > 0 && shi - slo ≤ 4 * min(abs(α), abs(β))))
     if narrow || _prefer_quadrature(fam)
         return _gl_moments(Δℓ, lo, hi)
-    elseif _near_pole(fam)
-        # Bounded interval (an infinite end is excluded upstream for ν ≤ 2).
-        f(s) = exp(Δℓ(s))
-        pts = lo < 0 < hi ? (lo, zero(lo), hi) : (lo, hi)
-        Z = quadgk(f, pts...; rtol = 1e-13)[1]
-        δ = quadgk(s -> s * f(s), pts...; rtol = 1e-13)[1] / Z
-        v = quadgk(s -> (s - δ)^2 * f(s), pts...; rtol = 1e-13)[1] / Z
-        return δ, v
+    elseif bounded && _near_pole(fam)
+        # Heavy tail (ν ≈ 1 or 2): the variance is dominated by the far end
+        # of the interval, so integrate over all of it, not the window.
+        return _gl_panels_moments(Δℓ, slo, shi)
     end
     m, E2 = _closed_moments(fam, α, β)
     v = E2 - m^2
@@ -436,7 +464,9 @@ Jacobian (ForwardDiff through the closed-form moments of
 [`truncated_locscale_moments`](@ref)). The Normal is solved in its natural
 parameters, which keeps Newton well conditioned up to the boundary of the
 feasible region. `tol` is on the residuals relative to `√v` (mean) and `v`
-(variance).
+(variance); if the line search stalls (very close to the boundary of the
+feasible region, where the moments themselves carry roundoff) a residual
+below `1000 tol` is accepted.
 
 Throws [`InfeasibleMomentsError`](@ref) if the target violates a known
 feasibility condition, or, for the two-sided Student-t (whose feasible region

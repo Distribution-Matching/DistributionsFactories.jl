@@ -231,4 +231,9 @@ end
     @test test_tls_large_nu_matches_normal()
     @test test_tls_infeasible_targets()
     @test test_tls_make_dist_two_sided_t()
+    @test test_tls_heavy_tail_half_line_vs_bigfloat()
+    @test test_tls_near_pole()
+    @test test_tls_half_line_nu_just_above_2()
+    @test test_tls_params_roundtrip_heavy_tails()
+    @test test_tls_input_validation()
 end

@@ -324,15 +324,16 @@ end
 function _why_not_dist_from_mean_var(d::Truncated{<:TDist}, μ̄::Number, σ̄²::Number)
     r = _why_not_positive_var("TDist", σ̄²); isnothing(r) || return r
     ν = dof(d.untruncated)
-    ν > 2 || return "Truncated TDist: requires ν > 2 for variance to exist (got ν=$ν)"
     lo, hi = extrema(d)
     if isfinite(lo) && isfinite(hi)
+        # Every ν > 0 has finite moments on a bounded interval.
         # Two-sided: defer to the doubly-truncated polynomial-tail dome
         # (not yet implemented as a feasibility predicate). Fall back to the
         # universal Bhatia–Davis ceiling, which is loose but correct.
         σ̄² < (hi - μ̄) * (μ̄ - lo) || return "Truncated TDist on [$lo, $hi]: σ̄² must be < (hi-μ̄)(μ̄-lo) (Bhatia–Davis universal bound; tight Pareto-tail dome not yet implemented)"
         return nothing
     end
+    ν > 2 || return "Truncated TDist on an unbounded interval: requires ν > 2 for the variance to exist (got ν=$ν)"
     cap = ν / (ν - 2)
     if isfinite(lo) && !isfinite(hi)
         μ̄ > lo || return "Truncated TDist: μ̄ must be > lo=$lo"

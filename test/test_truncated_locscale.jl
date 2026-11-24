@@ -32,9 +32,9 @@ function test_tls_moments_vs_quadgk()
         μ in (-3.0, -0.5, 0.0, 0.4, 2.0, 6.0), σ in (0.05, 0.3, 1.0, 4.0, 50.0),
         (a, b) in _TLS_BOUNDS
         # Unbounded intervals need ν > 2. The quadrature reference is slow on
-        # heavy tails, so for the t they use ν ≥ 3 and a coarser (μ, σ) grid.
+        # heavy tails, so for the t they use ν ≥ 2.5 and a coarser (μ, σ) grid.
         if fam isa TDist && !(isfinite(a) && isfinite(b))
-            dof(fam) ≥ 3 || continue
+            dof(fam) ≥ 2.5 || continue
             (μ in (-0.5, 2.0) && σ in (0.3, 4.0)) || continue
         end
         m, v = truncated_locscale_moments(fam, μ, σ, a, b)
@@ -183,4 +183,88 @@ function test_tls_make_dist_two_sided_t()
     d = make_dist(truncated(TDist(4.5); lower=-1, upper=2), mean=0.3, var=0.4)
     m, v = truncated_locscale_moments(TDist(4.5), d.untruncated.μ, d.untruncated.σ, -1, 2)
     return isapprox(m, 0.3; atol=1e-10) && isapprox(v, 0.4; rtol=1e-10)
+end
+
+# Heavy tails on a half-line (2 < ν < 3), against 200-bit references: the mass
+# Z by BigFloat quadrature and the moments from the identities of
+# truncated_locscale.jl (they agree with direct 200-bit integration of the
+# moments to 1e-16 at ν = 2.5; for ν → 2 that integration converges too slowly,
+# and Float64 adaptive quadrature is only good to ~1e-8 already at ν = 2.5).
+# The last case is the reflection of the second.
+function test_tls_heavy_tail_half_line_vs_bigfloat()
+    cases = [((2.5, -0.5, 1.0, 0.0, Inf), (1.2072094167037446, 4.646250132573678)),
+             ((2.5, -2.0, 0.3, -0.5, Inf), (0.5542866634634677, 5.419909626438271)),
+             ((2.2, 1.0, 2.0, 0.0, Inf), (2.8364763648665012, 29.608496372087686)),
+             ((2.05, -3.0, 0.5, 1.0, Inf), (4.870804122942079, 609.4479887854149)),
+             ((2.5, 2.0, 0.3, -Inf, 0.5), (-0.5542866634634677, 5.419909626438271))]
+    for ((ν, μ, σ, a, b), (mr, vr)) in cases
+        m, v = truncated_locscale_moments(TDist(ν), μ, σ, a, b)
+        (abs(m - mr) ≤ 1e-12 * sqrt(vr) && abs(v - vr) ≤ 1e-12 * vr) || begin
+            @info "heavy-tail mismatch" ν μ σ a b m mr v vr
+            return false
+        end
+    end
+    return true
+end
+
+# ν at or near the poles ν = 1, 2 of the closed forms, on bounded intervals
+# (including very wide ones, where the heavy tail dominates the variance).
+function test_tls_near_pole()
+    for ν in (1.0, 1 - 1e-6, 1 + 1e-6, 2.0, 2 - 1e-6, 2 + 1e-6),
+        (μ, σ, a, b) in ((0.2, 0.8, -1.0, 3.0), (0.0, 1.0, 0.0, 1e6),
+                         (5.0, 2.0, -1e4, 1e3), (-3.0, 0.5, 1.0, 50.0))
+        m, v = truncated_locscale_moments(TDist(ν), μ, σ, a, b)
+        mr, vr = _ref_tls_moments(TDist(ν), μ, σ, a, b)
+        if !(abs(m - mr) ≤ 1e-8 * sqrt(vr) && abs(v - vr) ≤ 1e-8 * vr)
+            @info "near-pole mismatch" ν μ σ a b m mr v vr
+            return false
+        end
+    end
+    # Derivatives through the near-pole quadrature.
+    for ν in (1.0, 2.0)
+        f(x) = collect(truncated_locscale_moments(TDist(ν), x[1], x[2], -1.0, 3.0))
+        J = ForwardDiff.jacobian(f, [0.2, 0.8])
+        h = 1e-4
+        for j in 1:2
+            e = [j == 1, j == 2] .* h
+            cd(h) = (f([0.2, 0.8] .+ e .* (h / 1e-4)) - f([0.2, 0.8] .- e .* (h / 1e-4))) / 2h
+            fd = (4cd(h / 2) - cd(h)) / 3
+            all(abs.(J[:, j] .- fd) .≤ 1e-7 .* abs.(fd) .+ 1e-12) || return false
+        end
+    end
+    return true
+end
+
+# Just above ν = 2 on a half-line the variance diverges like 1/(ν - 2); it is
+# computed by the closed form (no window clipping of the heavy tail).
+function test_tls_half_line_nu_just_above_2()
+    v(ν) = truncated_locscale_moments(TDist(ν), 0.0, 1.0, 1.0, Inf)[2]
+    c1, c2 = v(2 + 5e-5) * 5e-5, v(2 + 2e-4) * 2e-4
+    return isapprox(c1, c2; rtol=1e-3)
+end
+
+# Bounded intervals allow every ν > 0, through the solver and make_dist.
+function test_tls_params_roundtrip_heavy_tails()
+    for ν in (0.7, 1.0, 1.5, 2.0), (μ, σ) in ((0.3, 0.5), (-1.0, 2.0), (2.0, 0.3))
+        m, v = truncated_locscale_moments(TDist(ν), μ, σ, -1.0, 1.5)
+        μh, σh = truncated_locscale_params(TDist(ν), -1.0, 1.5, m, v)
+        (abs(μh - μ) ≤ 1e-7 * σ && abs(σh / σ - 1) ≤ 1e-7) || begin
+            @info "heavy-tail roundtrip mismatch" ν μ σ μh σh
+            return false
+        end
+    end
+    d = make_dist(truncated(TDist(1.5); lower=0, upper=2), mean=0.8, var=0.2)
+    m, v = truncated_locscale_moments(TDist(1.5), d.untruncated.μ, d.untruncated.σ, 0, 2)
+    return isapprox(m, 0.8; atol=1e-10) && isapprox(v, 0.2; rtol=1e-10)
+end
+
+function test_tls_input_validation()
+    throws(T, f) = try f(); false catch e; e isa T end
+    throws(ArgumentError, () -> truncated_locscale_moments(Normal, 0.0, 1.0, 1.0, 0.0)) &&
+    throws(DomainError, () -> truncated_locscale_moments(Normal, 0.0, -1.0, 0.0, 1.0)) &&
+    throws(DomainError, () -> truncated_locscale_moments(TDist(1.5), 0.0, 1.0, 0.0, Inf)) &&
+    throws(ArgumentError, () -> truncated_locscale_params(Normal, 1.0, 1.0, 1.0, 0.1)) &&
+    # Two-sided t past the solver's reach: flagged as not provably infeasible.
+    (e = try truncated_locscale_params(TDist(4.0), 0.0, 1.0, 0.5, 0.2) catch e; e end;
+     e isa InfeasibleMomentsError && !e.proven)
 end
