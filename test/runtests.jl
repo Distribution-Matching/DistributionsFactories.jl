@@ -17,6 +17,7 @@ include("test_dist_macro.jl")
 include("test_make_dist.jl")
 include("test_langevin.jl")
 include("test_extensions.jl")
+include("test_truncated_locscale.jl")
 
 
 @testset "Mean Var tests" begin
@@ -187,7 +188,7 @@ end
     @test test_truncated_poisson_noninteger_bounds_rejected()
     @test test_trunc_tdist_factory_half_below_roundtrip()
     @test test_trunc_tdist_factory_half_above_roundtrip()
-    @test test_trunc_tdist_factory_two_sided_not_implemented()
+    @test test_trunc_tdist_factory_two_sided_roundtrip()
     @test test_rayleigh_from_quantile()
     @test test_lognormal_from_quantiles()
     @test test_weibull_from_quantiles()
@@ -220,3 +221,14 @@ end
     @test test_half_trunc_logistic_constructor()
 end
 
+@testset "Truncated Normal / Student-t: closed-form moments and fast solver" begin
+    @test test_tls_moments_vs_quadgk()
+    @test test_tls_moments_hard_regimes()
+    @test test_tls_t_far_tail_below_pareto_bound()
+    @test test_tls_forwarddiff_vs_finite_differences()
+    @test test_tls_params_roundtrip()
+    @test test_tls_params_near_boundary()
+    @test test_tls_large_nu_matches_normal()
+    @test test_tls_infeasible_targets()
+    @test test_tls_make_dist_two_sided_t()
+end

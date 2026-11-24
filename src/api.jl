@@ -186,14 +186,18 @@ moment or quantile specification. All parameters are keyword arguments.
 - `support=a:b` — discrete shift
 
 # Truncated families
-For `Truncated{<:Normal/Laplace/Logistic}` factories, pass an instance whose
-truncation bounds describe the desired support. Both two-sided and one-sided
-truncation are supported:
+For `Truncated{<:Normal/Laplace/Logistic/TDist}` factories, pass an instance
+whose truncation bounds describe the desired support (and, for `TDist`, ν).
+Both two-sided and one-sided truncation are supported. Infeasible targets
+throw [`InfeasibleMomentsError`](@ref):
 ```julia
 make_dist(truncated(Normal(); lower=-0.5, upper=0.5), mean=0.1, var=0.05)
 make_dist(truncated(Normal(); lower=0),               mean=2.5, var=1.0)
 make_dist(truncated(Laplace(); upper=0),              mean=-1.0, var=0.5)
+make_dist(truncated(TDist(4.5); lower=-1, upper=2),   mean=0.3, var=0.4)
 ```
+For inner loops, [`truncated_locscale_params`](@ref) returns the parent
+`(μ, σ)` of a truncated Normal or Student-t without building a distribution.
 
 # Examples
 ```julia

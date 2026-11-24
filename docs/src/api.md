@@ -12,6 +12,14 @@ fixed_params
 free_params
 ```
 
+## Truncated Normal and Student-t (low-level)
+
+```@docs
+truncated_locscale_moments
+truncated_locscale_params
+InfeasibleMomentsError
+```
+
 ## Extension distribution types
 
 These are defined in this package because they are not part of `Distributions.jl`,

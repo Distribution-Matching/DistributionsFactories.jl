@@ -352,14 +352,21 @@ function test_trunc_tdist_factory_half_above_roundtrip()
     return true
 end
 
-function test_trunc_tdist_factory_two_sided_not_implemented()
-    template = truncated(TDist(5); lower=-1, upper=1)
-    try
-        dist_from_mean_var(template, 0.0, 0.5)
-        return false
-    catch e
-        return e isa ArgumentError
+function test_trunc_tdist_factory_two_sided_roundtrip()
+    # Two-sided truncated t (new in 0.2.0): moments of known truncations are
+    # matched back, checked against quadrature.
+    for ν in (2.5, 4.0, 10.0), μp in (-1.0, 0.0, 0.7), σp in (0.3, 1.0, 3.0)
+        parent = μp + σp * TDist(ν)
+        lo, hi = -1.0, 1.5
+        Z, _  = quadgk(x -> pdf(parent, x), lo, hi; rtol=1e-12)
+        m, _  = quadgk(x -> x * pdf(parent, x), lo, hi; rtol=1e-12)
+        m2, _ = quadgk(x -> x^2 * pdf(parent, x), lo, hi; rtol=1e-12)
+        μ̄, σ̄² = m / Z, m2 / Z - (m / Z)^2
+        d = dist_from_mean_var(truncated(TDist(ν); lower=lo, upper=hi), μ̄, σ̄²)
+        isapprox(d.untruncated.μ, μp; atol=1e-7) || return false
+        isapprox(d.untruncated.σ, σp; rtol=1e-7) || return false
     end
+    return true
 end
 
 # --- Quantile factory expansions -------------------------------------------

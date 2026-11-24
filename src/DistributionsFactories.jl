@@ -18,6 +18,7 @@ using Roots
 using QuadGK
 using IntervalSets
 using Random
+using ForwardDiff
 
 # Distribution types not provided by Distributions.jl. Real
 # subtypes of `ContinuousUnivariateDistribution` / `DiscreteUnivariateDistribution`
@@ -29,6 +30,7 @@ include("extensions/discrete_triangular.jl")
 
 include("solvers.jl")
 include("langevin.jl")
+include("truncated_locscale.jl")
 include("dist_exists.jl")
 include("moment_matching.jl")
 include("quantile_matching.jl")
@@ -42,6 +44,9 @@ export make_dist,
         available_distributions,
         @dist,
         DistSpec,
+        truncated_locscale_moments,
+        truncated_locscale_params,
+        InfeasibleMomentsError,
         fixed_params,
         free_params,
         ..,

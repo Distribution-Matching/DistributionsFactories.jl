@@ -41,6 +41,22 @@ function _require_dist_from_mean_var(D, μ̄::Number, σ̄²::Number)
     return nothing
 end
 
+# Truncated location-scale families throw the dedicated InfeasibleMomentsError
+# (a breaking change in 0.2.0; previously DomainError), so that callers can
+# catch infeasibility specifically and fall back.
+const _TruncatedLocScaleTemplate =
+    Truncated{<:Union{Normal, Laplace, Logistic, TDist}}
+
+function _require_dist_from_mean_var(d::_TruncatedLocScaleTemplate,
+                                     μ̄::Number, σ̄²::Number)
+    reason = _why_not_dist_from_mean_var(d, μ̄, σ̄²)
+    isnothing(reason) && return nothing
+    lo, hi = extrema(d)
+    fam = d.untruncated isa TDist ? "TDist($(dof(d.untruncated)))" :
+                                    string(nameof(typeof(d.untruncated)))
+    throw(InfeasibleMomentsError(fam, lo, hi, Float64(μ̄), Float64(σ̄²), true, reason))
+end
+
 # Shared across every continuous dist: σ̄² must be strictly positive.
 function _why_not_positive_var(name, σ̄²)
     σ̄² > 0 || return "$name: the condition σ̄² > 0 is not satisfied"
